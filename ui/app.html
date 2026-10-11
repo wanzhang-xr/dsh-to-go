@@ -12,9 +12,19 @@
   --fg:#F8FAFC; --muted:#94A3B8; --border:#475569; --accent:#22C55E; --on-accent:#0F172A;
   --danger:#EF4444; --warn:#F59E0B; --code:#0B1220;
   --r:10px; --gap:14px;
+  /* 动效 token（ui-ux-pro-max：进入用减速 ease-out、离开更快，不要把所有过渡都写成一个时长） */
+  --t-fast:120ms; --t:180ms; --t-slow:260ms;
+  --e-out:cubic-bezier(.22,.61,.36,1);   /* 进入：先快后慢 */
+  --e-in:cubic-bezier(.4,0,1,1);         /* 离开：先慢后快（退出比进入快，别拖） */
   --font-ui:"IBM Plex Sans","Microsoft YaHei UI","PingFang SC",system-ui,Segoe UI,sans-serif;
   --font-mono:"JetBrains Mono",Consolas,"Cascadia Mono",monospace;
 }
+/* 只动 transform / opacity（不碰 width/height，避免重排） */
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 currentColor;opacity:1}70%{box-shadow:0 0 0 9px transparent;opacity:.85}100%{box-shadow:0 0 0 0 transparent;opacity:1}}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:14px/1.6 var(--font-ui)}
 a{color:var(--accent)}
@@ -31,7 +41,7 @@ h3{margin:0 0 8px;font-size:13.5px;color:var(--muted);font-weight:600}
 nav{display:flex;gap:4px;flex-wrap:wrap;padding:10px 20px;background:var(--card-2);
   border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
 nav button{display:flex;align-items:center;gap:6px;min-height:40px;background:transparent;border:1px solid transparent;
-  color:var(--muted);padding:8px 14px;border-radius:var(--r);transition:background .18s,color .18s,border-color .18s}
+  color:var(--muted);padding:8px 14px;border-radius:var(--r);transition:background var(--t-fast) var(--e-out),color var(--t-fast) var(--e-out),border-color var(--t-fast) var(--e-out)}
 nav button:hover{background:var(--primary);color:var(--fg)}
 nav button[aria-selected="true"]{background:var(--primary);border-color:var(--border);color:var(--fg);font-weight:600}
 main{padding:18px 20px 80px;max-width:1080px;margin:0 auto}
@@ -44,12 +54,13 @@ section[hidden]{display:none}
 .row > .f{flex:1 1 200px;min-width:160px}
 label{display:block;margin:10px 0 4px;color:var(--muted);font-size:12.5px}
 input,select,textarea{width:100%;min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;
-  background:var(--bg);transition:border-color .18s}
+  background:var(--bg);transition:border-color var(--t-fast) var(--e-out)}
 input:hover,select:hover,textarea:hover{border-color:var(--secondary)}
 textarea{min-height:72px;font-family:var(--font-mono);font-size:12.5px}
 input[type=checkbox],input[type=radio]{width:auto;min-height:0;margin-right:6px;vertical-align:middle}
 .btn{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:9px 16px;border-radius:var(--r);
-  border:1px solid var(--border);background:var(--primary);color:var(--fg);transition:background .18s,border-color .18s,opacity .18s}
+  border:1px solid var(--border);background:var(--primary);color:var(--fg);transition:background var(--t-fast) var(--e-out),border-color var(--t-fast) var(--e-out),opacity var(--t-fast) var(--e-out),transform var(--t-fast) var(--e-out)}
+.btn:active:not([disabled]){transform:translateY(1px)}
 .btn:hover{background:var(--secondary)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
 .btn.primary:hover{filter:brightness(1.08)}
@@ -105,9 +116,9 @@ td.mono{font-family:var(--font-mono);font-size:12.5px}
 label.switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;margin:0;min-height:40px;color:var(--fg)}
 label.switch input{position:absolute;opacity:0;width:0;height:0}
 label.switch .track{width:44px;height:24px;border-radius:999px;background:var(--secondary);position:relative;
-  transition:background .18s;flex:0 0 auto}
+  transition:background var(--t) var(--e-out);flex:0 0 auto}
 label.switch .track::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
-  background:var(--fg);transition:transform .18s}
+  background:var(--fg);transition:transform var(--t) var(--e-out)}
 label.switch input:checked + .track{background:var(--accent)}
 label.switch input:checked + .track::after{transform:translateX(20px)}
 label.switch input:focus-visible + .track{outline:2px solid var(--accent);outline-offset:2px}
@@ -116,7 +127,29 @@ label.switch input:checked ~ .txt{color:var(--accent)}
 .mtable{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
 .mtable th,.mtable td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
 .mtable td.mono{font-family:var(--font-mono);font-size:12.5px}
+/* ---------------------------------------------------------------- 动效与状态反馈层（ui-ux-pro-max：进入减速、退出更快、只动 transform/opacity） */
+main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
+.card,.site{animation:rise var(--t) var(--e-out) both}
+.overlay:not([hidden]) .card{animation:pop var(--t-slow) var(--e-out) both}
+.flash.on{animation:rise var(--t-fast) var(--e-out) both}
+.cards .pcard{animation:rise var(--t) var(--e-out) both;content-visibility:auto;contain-intrinsic-size:auto 92px}
+.cards .pcard:nth-child(2){animation-delay:20ms}
+.cards .pcard:nth-child(3){animation-delay:40ms}
+.cards .pcard:nth-child(4){animation-delay:60ms}
+.cards .pcard:nth-child(n+5){animation-delay:80ms}
+.pill.pulse{animation:pulse 1.1s var(--e-out) 1}
+/* 骨架屏：加载时占住版面（CLS 不跳），别只留一行「加载中…」 */
+.sk{display:grid;gap:8px;margin-top:8px}
+.sk i{display:block;height:12px;border-radius:6px;
+  background:linear-gradient(90deg,var(--primary) 25%,var(--secondary) 37%,var(--primary) 63%);
+  background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+.sk i:nth-child(2){width:82%}
+.sk i:nth-child(3){width:64%}
+[aria-busy="true"]{cursor:progress}
+.flash .act{margin-left:10px;min-height:30px;padding:4px 12px;font-size:12.5px;vertical-align:middle}
+/* 用户要求减少动效时，全部关掉（放在上面那批规则之后） */
 @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+
 @media (max-width:640px){.grid{grid-template-columns:1fr}.grid > div:nth-child(odd){margin-top:8px}header{padding:12px 14px}main{padding:14px 14px 60px}}
 #banner{padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(245,158,11,.16);color:var(--fg);font-size:13px;line-height:1.6}
 #banner[hidden]{display:none}
@@ -559,6 +592,8 @@ let LOG_OFFSET = 0;
 let CUR_LOG = 'job-log';
 let CUR_GRID = 'job-state';
 let CUR_OUT = 'job-out';
+let LAST_OP = null;             // 最近一次任务的入参（失败时给「再试一次」用）
+let JOB_LAST_ST = null;         // 上一次看到的状态（用于「状态变化」时才脉冲）
 let POLL = null;
 
 /* ---------------------------------------------------------------- 基础请求 */
@@ -590,6 +625,31 @@ async function withBusy(btn, label, fn) {
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>' + (label || '处理中…');
   try { return await fn(); } finally { btn.disabled = false; btn.innerHTML = old; }
+}
+
+/** 骨架屏：加载时先把版面占住（比一行「加载中…」更稳：不跳版、能看出是列表） */
+function skeleton(target, lines) {
+  const box = el(target);
+  if (!box) return;
+  box.setAttribute('aria-busy', 'true');
+  box.innerHTML = '<div class="sk">' + '<i></i>'.repeat(lines || 3) + '</div>';
+}
+function busyDone(target) { const b = el(target); if (b) b.removeAttribute('aria-busy'); }
+
+/** 错误提示带「下一步」：技能里明确要求错误要给恢复路径，不能只说失败了 */
+function flashAction(id, text, kind, act) {
+  const f = el(id);
+  f.className = 'flash on' + (kind ? ' ' + kind : '');
+  f.textContent = text;
+  if (act && act.label && typeof act.fn === 'function' && typeof document.createElement === 'function') {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn act';
+    b.textContent = act.label;
+    b.addEventListener('click', () => act.fn());
+    f.appendChild(b);
+  }
+  return f;
 }
 
 /* ---------------------------------------------------------------- 标签切换 */
@@ -678,9 +738,15 @@ function statusPill(st) {
 function renderJob(j, gridId) {
   const g = gridId || 'job-state';
   if (!j) { rows(g, [['当前任务', '（无）']]); return; }
+  // 状态变了才脉冲一下（每次轮询都闪会烦人）
+  const changed = j.status !== JOB_LAST_ST;
+  JOB_LAST_ST = j.status;
+  const pill = changed && (j.status === 'done' || j.status === 'failed' || j.status === 'cancelled')
+    ? '<span class="pill ' + (/done/.test(j.status) ? 'ok' : 'bad') + ' pulse">' + (j.status === 'done' ? '完成' : '失败') + '</span>'
+    : statusPill(j.status);
   rows(g, [
     ['任务', esc(j.label)],
-    ['状态', statusPill(j.status) + ' ' + esc(j.message || '')],
+    ['状态', pill + ' ' + esc(j.message || '')],
     ['阶段', esc(j.stage || '—')],
     ['开始 / 结束', esc(j.startedAt || '—') + (j.endedAt ? ' → ' + esc(j.endedAt) : '')],
     ['退出码', j.exitCode === null || j.exitCode === undefined ? '—' : String(j.exitCode)],
@@ -698,7 +764,8 @@ async function refresh() {
   } catch (e) {
     FAILS++;
     if (FAILS >= 3) bannerBackendGone();
-    flash('ov-dsh-out', '读取状态失败：' + e.message, 'err');
+    flashAction('ov-dsh-out', '读取状态失败：' + e.message + '　—　服务是不是关了？可以再试一次。', 'err',
+      { label: '重试', fn: () => refresh() });
     return null;
   }
 }
@@ -861,6 +928,7 @@ function ago(iso) {
 }
 
 async function loadSites() {
+  skeleton('site-list', 3);
   const r = await api('/api/sites');
   SITES = r.sites || [];
   KEY_LENGTHS = r.keyLengths || {};
@@ -877,6 +945,7 @@ async function loadSites() {
 
 /** 站点卡片列表（单独一个函数，方便在状态变化后局部重画，也方便被测试直接调用）。 */
 function renderSiteList() {
+  busyDone('site-list');
   const box = el('site-list');
   if (!SITES.length) { box.innerHTML = '（还没有站点）'; return; }
   box.innerHTML = SITES.map((s) => {
@@ -1144,9 +1213,19 @@ async function pollJob() {
       const mine = (s.jobs || []).find((j) => j.id === CURRENT_JOB);
       if (mine) renderJob(mine, CUR_GRID || 'job-state');
       stopPolling();
-      flash(CUR_OUT || 'job-out', '任务结束：' + (mine ? (mine.status + '　' + (mine.message || '')) : '—') +
-        (mine && mine.status !== 'done' ? (function () { const h = jobFailHint(); return h ? '　—　' + h : ''; })() : ''),
-        mine && mine.status === 'done' ? 'ok' : 'warn');
+      const hint = jobFailHint();
+      const t = String((el(CUR_LOG || 'plug-log') || {}).textContent || '');
+      if (mine && mine.status !== 'done' && /UNEXPECTED_STORE/.test(t)) {
+        flashAction(CUR_OUT || 'job-out', '任务结束：' + mine.status + '　' + (mine.message || '') + '　—　' + hint, 'warn',
+          { label: '装匹配的 pnpm', fn: () => el('btn-pnpm-setup').click() });
+      } else if (mine && mine.status !== 'done' && /MINIMUM_RELEASE_AGE/.test(t)) {
+        flashAction(CUR_OUT || 'job-out', '任务结束：' + mine.status + '　' + (mine.message || '') + '　—　' + hint, 'warn',
+          { label: '放宽并重试', fn: () => { setRelax(true); if (LAST_OP) runJob(LAST_OP.path, LAST_OP.body, LAST_OP.btn, LAST_OP.label, LAST_OP.opts); } });
+      } else {
+        flashAction(CUR_OUT || 'job-out', '任务结束：' + (mine ? (mine.status + '　' + (mine.message || '')) : '—') + (mine && mine.status !== 'done' && hint ? '　—　' + hint : ''),
+          mine && mine.status === 'done' ? 'ok' : 'warn',
+          mine && mine.status !== 'done' && LAST_OP ? { label: '再试一次', fn: () => runJob(LAST_OP.path, LAST_OP.body, LAST_OP.btn, LAST_OP.label, LAST_OP.opts) } : null);
+      }
       await refresh();
       if (PLUG) loadPlugins(true).catch(() => {});
       return;
@@ -1168,6 +1247,7 @@ async function pullLog() {
 }
 async function runJob(path, body, btn, label, opts) {
   const o = opts || {};
+  LAST_OP = { path, body, btn, label, opts: o };     // 失败时可以「放宽后再试一次」，不用用户重填
   CUR_LOG = o.log || 'job-log';
   CUR_GRID = o.jobGrid || 'job-state';
   const outId = o.out || 'job-out';
@@ -1379,9 +1459,11 @@ function savePrefs() { api('/api/prefs', { plugins: PREFS.plugins }, 'POST').cat
 
 async function loadPlugins(force) {
   try {
+    if (!PLUG) { skeleton('official-cards', 3); skeleton('third-cards', 3); }   // 首次读目录要给个「在读了」的样子
     PLUG = await api('/api/plugins/catalog' + (force ? '?force=1' : ''), undefined, 'GET');
     renderPlugins();
-  } catch (e) { flash('plug-out', '读插件目录失败：' + e.message, 'err'); }
+    busyDone('official-cards'); busyDone('third-cards');
+  } catch (e) { busyDone('official-cards'); busyDone('third-cards'); flash('plug-out', '读插件目录失败：' + e.message, 'err'); }
 }
 
 /** 一个条目一个开关（官方与第三方通用） */
@@ -1499,7 +1581,7 @@ async function mktSearch(page) {
   MKT.sort = el('mkt-sort').value;
   MKT.risk = el('mkt-risk').checked;
   el('mkt-info').innerHTML = '<span class="sub">读索引中…（第一次会用一次网络把社区索引拉到盘上，约 4 MB）</span>';
-  el('mkt-cards').innerHTML = '';
+  skeleton('mkt-cards', 3);
   el('mkt-pager').innerHTML = '';
   try {
     const r = await api('/api/market?q=' + encodeURIComponent(MKT.q) + '&cat=' + encodeURIComponent(MKT.cat) +
@@ -1664,6 +1746,16 @@ function applyPrefs() {
   if (sub === 'market' && !MKT.data) mktSearch(1);
 }
 
+/** 放宽「新包冷却」开关的唯一入口（页面勾选 / 失败后「放宽并重试」都走这里） */
+function setRelax(on) {
+  PREFS.plugins.relaxReleaseAge = !!on;
+  el('plug-relax').checked = !!on;
+  applyPrefs(); savePrefs();
+  flash('plug-out', on
+    ? '已放宽 pnpm 的「新包冷却」：之后的装卸/删除会按 minimumReleaseAge=0 跑（能装到刚发布的包）。'
+    : '已恢复 pnpm 默认的新包冷却（24 小时内的包会被拒绝）。', on ? 'warn' : 'ok');
+}
+
 /** 插件任务失败时，按日志里真实的错误码给一句人话（pnpm 的两种已知拦路虎） */
 function jobFailHint() {
   const t = String((el(CUR_LOG || 'plug-log') || {}).textContent || '');
@@ -1688,13 +1780,7 @@ el('plug-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') plug
 // 显示开关（状态存盘：data/ui-prefs.json，跟盘走）
 el('show-official').addEventListener('change', () => { PREFS.plugins.showOfficial = el('show-official').checked; applyPrefs(); savePrefs(); });
 el('show-third').addEventListener('change', () => { PREFS.plugins.showThird = el('show-third').checked; applyPrefs(); savePrefs(); });
-el('plug-relax').addEventListener('change', () => {
-  PREFS.plugins.relaxReleaseAge = el('plug-relax').checked;
-  applyPrefs(); savePrefs();
-  flash('plug-out', PREFS.plugins.relaxReleaseAge
-    ? '已放宽 pnpm 的「新包冷却」：之后的装卸/删除会按 minimumReleaseAge=0 跑（能装到刚发布的包）。'
-    : '已恢复 pnpm 默认的新包冷却（24 小时内的包会被拒绝）。', PREFS.plugins.relaxReleaseAge ? 'warn' : 'ok');
-});
+el('plug-relax').addEventListener('change', () => setRelax(el('plug-relax').checked));
 el('subtab-installed').addEventListener('click', () => { PREFS.plugins.sub = 'installed'; applyPrefs(); savePrefs(); });
 el('subtab-market').addEventListener('click', () => { PREFS.plugins.sub = 'market'; applyPrefs(); savePrefs(); });
 

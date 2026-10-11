@@ -281,10 +281,10 @@ function pnpmFor(profile) {
   const compatible = !!version && (!wantMajor || wantMajor === haveMajor);
   const hint = !version
     ? (wantMajor
-      ? '这个 profile 是 pnpm ' + (st.pnpmVersion || ('v' + wantMajor)) + ' 装的，盘上还没有这一版：点「准备 pnpm」装一份到本盘（约 10 MB，不碰宿主）'
+      ? '这个插件目录是 pnpm ' + (st.pnpmVersion || ('v' + wantMajor)) + ' 装的，盘上还没有这一版：点「准备 pnpm」装一份到本盘（约 10 MB，不碰宿主）'
       : '盘上还没有 pnpm：点「准备 pnpm」装一份到本盘（约 10 MB，不碰宿主）')
     : (!compatible
-      ? '这个 profile 是 pnpm ' + (st.pnpmVersion || ('v' + wantMajor)) + ' 装的，盘上这份是 ' + version +
+      ? '这个插件目录是 pnpm ' + (st.pnpmVersion || ('v' + wantMajor)) + ' 装的，盘上这份是 ' + version +
         '——跨大版本共用 store 会被 pnpm 直接拒绝（ERR_PNPM_UNEXPECTED_STORE），所以装卸插件会失败。' +
         '装一份匹配的 pnpm 即可（不改动已装的插件）。'
       : null);

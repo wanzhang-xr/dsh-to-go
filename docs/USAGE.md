@@ -129,7 +129,7 @@ tools\rescue\dsh-config.cmd
 
 | 日志里的错误码 | 意思 | 怎么办 |
 | --- | --- | --- |
-| `ERR_PNPM_UNEXPECTED_STORE` | 这个 profile 当初是用**另一个大版本的 pnpm** 装的，你的盘上那份 pnpm 的 store 跟它对不上，pnpm 直接拒活（连删除也会失败，「重新读取」没用——不是页面读错） | 点插件环境卡里的「装匹配的 pnpm」（它会照 profile 记录的版本装到盘上，`runtime\pnpm-<大版本>`），完事再点一次删除 |
+| `ERR_PNPM_UNEXPECTED_STORE` | 这个插件目录当初是用**另一个大版本的 pnpm** 装的，你的盘上那份 pnpm 的 store 跟它对不上，pnpm 直接拒活（连删除也会失败，「重新读取」没用——不是页面读错） | 点插件环境卡里的「装匹配的 pnpm」（它会照插件目录记录的版本装到盘上，`runtime\pnpm-<大版本>`），完事再点一次删除 |
 | `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | pnpm 12 的「新包冷却」：lockfile 里有**发布不到 24 小时**的包，出于供应链安全 pnpm 拒绝动它（连删除都被拦） | 要么等这个包过了 24 小时，要么勾上插件环境卡里的「放宽 pnpm 的「新包冷却」」（默认关闭；勾上后按 `minimumReleaseAge=0` 跑，能装到刚发布的包，风险自负） |
 
 两个都不是页面 bug：一个是 pnpm 版本对不上，一个是 pnpm 的安全策略。页面上「插件环境卡」随时显示当前

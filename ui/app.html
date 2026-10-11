@@ -147,6 +147,17 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
 .sk i:nth-child(3){width:64%}
 [aria-busy="true"]{cursor:progress}
 .flash .act{margin-left:10px;min-height:30px;padding:4px 12px;font-size:12.5px;vertical-align:middle}
+/* 「详情」折叠：主视图只说人话，路径/文件名/内部 id 收进来（默认折叠） */
+details.more{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px}
+details.more > summary{cursor:pointer;color:var(--muted);font-size:12.5px;list-style:none;
+  display:inline-flex;align-items:center;gap:6px;min-height:28px;border-radius:6px}
+details.more > summary::-webkit-details-marker{display:none}
+details.more > summary::before{content:'▸';font-size:11px;transition:transform var(--t-fast) var(--e-out)}
+details.more[open] > summary::before{transform:rotate(90deg)}
+details.more[open] > summary{color:var(--fg)}
+details.more > .body{margin-top:8px;color:var(--muted);font-size:12.5px;line-height:1.75}
+details.more > .body code{color:var(--fg)}
+details.more > .body .ln{display:block}
 /* 用户要求减少动效时，全部关掉（放在上面那批规则之后） */
 @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
 
@@ -187,7 +198,7 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" aria-hidden="true">
       <path d="M4 7h16M4 12h16M4 17h10"/></svg>
     便携版 DeepSeek Harness
-    <span class="sub" id="hdr-sub">加载中…</span>
+    <span class="sub" id="hdr-sub">正在读取状态…</span>
   </h1>
   <div class="row" style="align-items:center">
     <span class="pill" id="hdr-login"><span class="dot off"></span> 未解锁</span>
@@ -266,9 +277,12 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
   <section id="tab-sites" role="tabpanel" hidden>
     <div class="card">
       <h2>站点（可同时启用多个）</h2>
-      <p class="sub">站点表写在 <code>data\sites.json</code>，覆盖层 <code>data\site-patch.yml</code> 由它生成，
-        启动时以 <code>--patch</code> 交给 dsh。站点 ID 不可重复，密钥变量名默认按 <code>站点ID_API_KEY</code> 生成。</p>
-      <div id="site-list" class="sub">加载中…</div>
+      <p class="sub">站点可以同时启用多个；每个站点的密钥单独加密保存，变量名自动生成。站点 ID 不可重复。</p>
+      <details class="more"><summary>详情：站点表与覆盖层</summary><div class="body">
+        <span class="ln">站点表写在 <code>data\sites.json</code>，覆盖层 <code>data\site-patch.yml</code> 由它生成，启动时以 <code>--patch</code> 交给 dsh。</span>
+        <span class="ln">密钥变量名默认按 <code>站点ID_API_KEY</code> 生成，也可以自己指定。</span>
+      </div></details>
+      <div id="site-list" class="sub">正在读取站点…</div>
       <div class="row" style="margin-top:12px">
         <button class="btn primary" id="btn-site-new">新增站点</button>
         <button class="btn" id="btn-overlay-rebuild">重新生成覆盖层并验收</button>
@@ -348,7 +362,10 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
 
     <div class="card">
       <h2>默认模型</h2>
-      <p class="sub">agent 默认用哪个站点的哪个模型（会写进覆盖层的 <code>agent-default-model</code>）。</p>
+      <p class="sub">agent 默认用哪个站点的哪个模型。</p>
+      <details class="more"><summary>详情</summary><div class="body">
+        <span class="ln">这一项会写进覆盖层里的 <code>agent-default-model</code> 条目。</span>
+      </div></details>
       <div class="row">
         <div class="f"><label for="d-site">站点</label><select id="d-site"></select></div>
         <div class="f"><label for="d-model">模型</label><select id="d-model"></select></div>
@@ -457,8 +474,13 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
   <section id="tab-plugins" role="tabpanel" hidden>
     <div class="card">
       <h2>插件环境</h2>
-      <p class="sub">官方插件随 dsh 装在<b>活动槽</b>里；第三方包装在本盘的 <b>profile</b>（<code class="mono">data/profiles/web</code>，由盘上的 <b>pnpm</b> 管理）。
-        条目启停写在我们的覆盖层里（作为 <code>--patch</code> 传给 dsh），<b>重启 dsh 生效</b>；<b>dsh 运行时不能改</b>（按钮会被拒绝）。</p>
+      <p class="sub">官方插件随 dsh 装在<b>活动槽</b>里，不用单独管；第三方插件装在本盘的插件目录里，由盘上自带的 <b>pnpm</b> 管理。
+        条目的启用/停用<b>重启 dsh 才生效</b>，dsh 运行时这些按钮会被拒绝。</p>
+      <details class="more"><summary>详情：插件装在哪、「条目」是什么</summary><div class="body">
+        <span class="ln">第三方插件目录 <code>data/profiles/web</code>；装它用的 pnpm 和 store 都在本盘上，不碰宿主。</span>
+        <span class="ln">条目启停写在我们的覆盖层里，作为 <code>--patch</code> 传给 dsh。</span>
+        <span class="ln">「条目」= dsh 配置树里的开关。一个插件可能带多个条目，所以一张卡上可能有好几个开关。</span>
+      </div></details>
       <div class="grid" id="plug-status"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn" id="btn-plug-refresh">重新读取</button>
@@ -468,8 +490,11 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
       <div class="flash" id="plug-out"></div>
       <div class="row" style="margin-top:10px">
         <label class="switch"><input type="checkbox" id="plug-relax"><span class="track"></span><span>放宽 pnpm 的「新包冷却」</span></label>
-        <span class="sub">pnpm 12 默认拒绝 24 小时内发布的包（连普通删除都会被它拦住）。勾上就按 <code class="mono">minimumReleaseAge=0</code> 跑，能装到刚发布的包——风险自负。</span>
-      </div>
+        <span class="sub">pnpm 12 默认拒绝 24 小时内发布的包（连普通删除都会被它拦住）。勾上就能装到刚发布的包——风险自负。</span>
+        </div>
+        <details class="more"><summary>详情</summary><div class="body">
+        <span class="ln">勾上之后，插件操作按 <code>--config.minimumReleaseAge=0</code> 跑 pnpm（这是 pnpm 的供应链安全策略，默认关着，不替你决定）。</span>
+        </div></details>
     </div>
 
     <div class="card">
@@ -477,7 +502,7 @@ main section:not([hidden]){animation:rise var(--t) var(--e-out) both}
       <div class="row" style="gap:22px">
         <label class="switch"><input type="checkbox" id="show-official"><span class="track"></span><span>官方插件</span></label>
         <label class="switch"><input type="checkbox" id="show-third"><span class="track"></span><span>第三方插件</span></label>
-        <span class="sub">开关跟着盘走（存在 <code class="mono">data/ui-prefs.json</code>）</span>
+        <span class="sub" title="显示开关存在 data/ui-prefs.json，跟盘走">开关跟着盘走</span>
       </div>
     </div>
 
@@ -689,13 +714,16 @@ function render(s) {
     ['活动槽', s.slot.active + ' · dsh ' + esc(s.slot.activeVersion)],
     ['空闲槽（回滚目标）', s.slot.idle + ' · dsh ' + esc(s.slot.idleVersion)],
   ]);
+  const tempOnDrive = s.tempRoot && s.root && String(s.tempRoot).toLowerCase().indexOf(String(s.root).toLowerCase()) === 0;
   rows('ov-env', [
-    ['本盘根目录', '<span class="mono">' + esc(s.root) + '</span>'],
     ['便携 Node', esc(s.node)],
-    ['代码层 runtime\\', esc(s.sizes.runtime) + '　npm 缓存 ' + esc(s.sizes.cache)],
-    ['数据 data\\', esc(s.sizes.data)],
+    ['代码层', esc(s.sizes.runtime) + '　npm 缓存 ' + esc(s.sizes.cache)],
+    ['数据', esc(s.sizes.data)],
     ['磁盘剩余', esc(s.sizes.free)],
-    ['临时目录', esc(s.tempRoot)],
+    ['临时目录', tempOnDrive ? '本盘上' : '宿主临时目录（默认）'],
+    ['路径', more('详情', '<span class="ln">本盘根目录 <code>' + esc(s.root) + '</code></span>' +
+      '<span class="ln">代码层 <code>runtime\\</code>　数据 <code>data\\</code></span>' +
+      '<span class="ln">临时目录 <code>' + esc(s.tempRoot) + '</code></span>')],
   ]);
   const sites = (s.sites && s.sites.list) || [];
   const keySites = (s.key && s.key.sites) || [];
@@ -917,6 +945,23 @@ function cacheLookup(site) {
   }
   return null;
 }
+/** 主视图只说人话：路径/文件名/内部 id 这类实现细节收进「详情」折叠（默认收起） */
+function more(summary, bodyHtml) {
+  return '<details class="more"><summary>' + summary + '</summary><div class="body">' + bodyHtml + '</div></details>';
+}
+/** 数字统一：大数加千分位，缺值统一成「—」（别一处在页面上写裸数字） */
+function fmtNum(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  const x = Number(n);
+  if (!Number.isFinite(x)) return String(n);
+  return x.toLocaleString('en-US');
+}
+/** 时间统一：主视图给相对时间，绝对时间放进 title（鼠标停一下就能看到） */
+function fmtWhen(iso) {
+  if (!iso) return '—';
+  const abs = String(iso).replace('T', ' ').replace(/\.\d+Z?$/, '');
+  return '<span title="' + esc(abs) + '">' + esc(ago(iso)) + '</span>';
+}
 function ago(iso) {
   const t = Date.parse(iso || '');
   if (!t) return '时间未知';
@@ -951,7 +996,7 @@ function renderSiteList() {
   box.innerHTML = SITES.map((s) => {
     const models = (s.models || []).map((m) => '<span class="tag' + (m.image ? ' vision' : '') + '">' + esc(m.id) + (m.image ? ' · 含图' : '') + '</span>').join('');
     const c = cacheLookup(s);
-    const cacheLine = c ? '<div class="sub" style="margin-top:4px">模型列表已缓存：' + c.count + ' 个（' + ago(c.at) + '）</div>' : '';
+    const cacheLine = c ? '<div class="sub" style="margin-top:4px">模型列表已缓存：' + fmtNum(c.count) + ' 个（' + fmtWhen(c.at) + '）</div>' : '';
     return '<div class="site"><div class="top"><div class="title">' + esc(s.id) +
       (s.name ? '<span class="sub">（' + esc(s.name) + '）</span>' : '') +
       (s.enabled === false ? '<span class="pill warn">已停用</span>' : '<span class="pill ok">启用中</span>') +
@@ -1503,8 +1548,8 @@ function thirdCard(p, running) {
 function marketCard(p) {
   const risk = (p.redLines || []).length;
   return '<div class="pcard">' + pfIconHtml(p.name) + '<div class="pc-main">' +
-    '<div class="pc-title"><b>' + esc(p.name) + '</b>' + (p.version ? spill('v' + p.version) : '') + spill('★ ' + p.stars) +
-    (p.downloads ? spill('⤓ ' + p.downloads) : '') + (risk ? spill('⚠ 有风险提示', 'bad') : '') + '</div>' +
+    '<div class="pc-title"><b>' + esc(p.name) + '</b>' + (p.version ? spill('v' + p.version) : '') + spill('★ ' + fmtNum(p.stars)) +
+    (p.downloads ? spill('⤓ ' + fmtNum(p.downloads)) : '') + (risk ? spill('⚠ 有风险提示', 'bad') : '') + '</div>' +
     '<div class="pc-sub">' + esc(p.owner) + ' · ' + esc(catName(p.category)) + (p.added ? ' · 收录 ' + esc(p.added) : '') +
     (p.npm ? ' · ' + esc(p.npm) : ' · 走 git/链接安装') + '</div>' +
     '<div class="pc-desc">' + esc(cut(p.zh || p.en, 160)) + '</div>' +
@@ -1529,23 +1574,25 @@ function renderPlugins() {
   const pnpmCell = pn.ok
     ? '<span class="pill ok">就绪</span> v' + esc(pn.version) + (pn.nodeLinker ? '　<span class="sub">' + esc(pn.nodeLinker) + '</span>' : '')
     : (pn.ours
-      ? '<span class="pill bad">不匹配</span> 盘上是 v' + esc(pn.version) + '，这个 profile 是 ' +
+      ? '<span class="pill bad">不匹配</span> 盘上是 v' + esc(pn.version) + '，这个插件目录是 ' +
         esc(pn.wantVersion || ('pnpm ' + (pn.wantMajor || '?'))) + ' 装的'
       : '<span class="pill warn">未就绪</span> <span class="sub">' + esc(pn.hint || '') + '</span>');
   rows('plug-status', [
     ['pnpm（装卸第三方插件要用）', pnpmCell],
-    ['profile 目录（第三方包装这里）', '<span class="mono sub">' + esc(r.profileDir) + '</span>'],
-    ['活动槽（官方插件在这里）', '<span class="mono">' + esc(r.slot) + '</span> <span class="sub">dsh ' + esc(r.slotVersion || '?') + '</span>'],
+    ['活动槽', '<b>' + esc(r.slot) + '</b>　<span class="sub">dsh ' + esc(r.slotVersion || '?') + '　官方插件在这里</span>'],
+    ['第三方插件', '<span class="sub">装在本盘的插件目录里，由盘上的 pnpm 管理</span>'],
     ['dsh 状态', running
       ? '<span class="pill bad">运行中：插件改动会被拒</span>'
       : '<span class="pill ok">已停止（可以改）</span>'],
     ['统计', r.counts.officialCards + ' 张官方卡片（共 ' + r.counts.officialPackages + ' 个自带包）　·　' +
       r.counts.thirdPartyCards + ' 张第三方卡片　·　' + r.counts.entries + ' 个条目' +
       (r.counts.orphan ? '（' + r.counts.orphan + ' 个条目没归到卡片）' : '')],
+    ['路径', more('详情', '<span class="ln">第三方插件目录 <code>' + esc(r.profileDir) + '</code></span>' +
+      '<span class="ln">活动槽目录 <code>' + esc(r.slot) + '</code></span>')],
   ]);
   el('plug-pnpm-note').innerHTML = pn.ok
     ? '盘上自带（不依赖宿主装没装）' + (pn.storeMissing
-      ? '；注意：profile 记录的 store 已不在（<span class="mono">' + esc(pn.store) + '</span>），装/卸时 pnpm 会重建它'
+      ? '；注意：这个插件目录记录的缓存位置已经不在，装/卸时 pnpm 会重建它'
       : '')
     : esc(pn.hint || '');
   el('btn-pnpm-setup').disabled = !!pn.ok || running;
@@ -1591,12 +1638,12 @@ async function mktSearch(page) {
       el('mkt-info').innerHTML = '<span class="pill warn">读不到索引</span> <span class="sub">' + esc(r.error || '') + '</span>';
       return;
     }
-    el('mkt-cat').innerHTML = '<option value="">全部分类（' + esc(r.source.count) + ' 个插件）</option>' +
+    el('mkt-cat').innerHTML = '<option value="">全部分类（' + fmtNum(r.source.count) + ' 个插件）</option>' +
       Object.keys(r.categories).map((k) => '<option value="' + esc(k) + '"' + (k === MKT.cat ? ' selected' : '') + '>' +
         esc(r.categories[k]) + '</option>').join('');
-    el('mkt-info').innerHTML = '命中 <b>' + r.total + '</b> 个　第 ' + r.page + ' / ' + r.pages + ' 页　' +
+    el('mkt-info').innerHTML = '命中 <b>' + fmtNum(r.total) + '</b> 个　第 ' + r.page + ' / ' + r.pages + ' 页　' +
       '<span class="sub">索引来自 ' + esc(r.source.data) + '（' + esc(r.source.updated || '?') + ' 更新，共 ' +
-      esc(r.source.count) + ' 个）</span>';
+      esc(fmtNum(r.source.count)) + ' 个）</span>';
     el('mkt-cards').innerHTML = r.items.map(marketCard).join('') || '<span class="sub">（没有匹配的插件）</span>';
     el('mkt-pager').innerHTML = '第 ' + r.page + ' / ' + r.pages + ' 页　' +
       (r.page > 1 ? '<button class="btn" data-mpage="' + (r.page - 1) + '">上一页</button> ' : '') +
@@ -1661,12 +1708,12 @@ async function openMarketDetail(name) {
     const r = await api('/api/market/item?name=' + encodeURIComponent(name) + '&compat=1', undefined, 'GET');
     if (!r.ok) { pdOpen('<h2>' + esc(name) + '</h2><p class="sub">' + esc(r.error || '读不到') + '</p>'); return; }
     const p = r.item;
-    let html = '<h2>' + esc(p.name) + ' ' + (p.version ? spill('v' + p.version) : '') + spill('★ ' + p.stars) + '</h2>' +
+    let html = '<h2>' + esc(p.name) + ' ' + (p.version ? spill('v' + p.version) : '') + spill('★ ' + fmtNum(p.stars)) + '</h2>' +
       '<p class="sub">' + esc(p.zh || '（源里没有中文简介）') + '</p>' +
-      (p.en ? '<details><summary class="sub">英文原文</summary><p class="sub">' + esc(p.en) + '</p></details>' : '') +
+      (p.en ? '<details class="more"><summary>英文原文</summary><div class="body">' + esc(p.en) + '</div></details>' : '') +
       '<div class="kv">' + kvRow('作者', p.owner) + kvRow('分类', catName(p.category)) +
       kvRow('npm', p.npm || '（没有 npm 包，走 git / 链接安装）') +
-      kvRow('下载量', p.downloads == null ? '—' : String(p.downloads)) + kvRow('收录', p.added) +
+      kvRow('下载量', fmtNum(p.downloads)) + kvRow('收录', p.added) +
       kvRowHtml('能力', (p.capabilities || []).map((c) => spill(c)).join(' ') || '—') +
       (p.redLines && p.redLines.length ? kvRowHtml('⚠ 风险', p.redLines.map((x) => '<span class="spill bad">' + esc(x) + '</span>').join(' ')) : '') +
       kvRowHtml('页面', '<a href="' + esc(p.page || p.url) + '" target="_blank" rel="noopener">' + esc(p.page || p.url) + '</a>') +
@@ -1759,7 +1806,7 @@ function setRelax(on) {
 /** 插件任务失败时，按日志里真实的错误码给一句人话（pnpm 的两种已知拦路虎） */
 function jobFailHint() {
   const t = String((el(CUR_LOG || 'plug-log') || {}).textContent || '');
-  if (/UNEXPECTED_STORE/.test(t)) return 'pnpm 版本不匹配（这个 profile 是别的 pnpm 装的）：点上面的「装匹配的 pnpm」再试。';
+  if (/UNEXPECTED_STORE/.test(t)) return 'pnpm 版本不匹配（这个插件目录是别的 pnpm 装的）：点上面的「装匹配的 pnpm」再试。';
   if (/MINIMUM_RELEASE_AGE/.test(t)) return '被 pnpm 的「新包冷却」拦下（包发布还不到 24 小时）：勾上左侧的「放宽新包冷却」再试。';
   if (PLUG && PLUG.pnpm && !PLUG.pnpm.ok && PLUG.pnpm.hint) return PLUG.pnpm.hint;
   return '';

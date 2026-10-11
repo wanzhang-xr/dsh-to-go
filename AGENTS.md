@@ -184,6 +184,13 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
    插件类失败要**读日志里的真实错误码**再翻译（`jobFailHint()`），别猜。
 4. ⚠️ **`@media (prefers-reduced-motion: reduce)` 那一行不许当补丁锚点**：它必须留着（尊重系统设置）。
    重构时把它替换掉过一次，现在运行期核查里有断言守着（`page-runtime-check.js`）。
+5. **主视图只说人话，实现细节进「详情」折叠**：路径、文件名、`.yml/.json`、内部条目 id（如 `agent-default-model`）、
+   pnpm 旗标这类东西，用 `more('详情', '…')` 收进默认收起的 `<details class="more">`（或 HTML 里直接写 `<details class="more">`）。
+   面板标题行、卡片正文里不许出现 `runtime\`、`data\`、`C:\…` 这种路径——**运行期核查会拦**。
+6. **数字与时间不许各写各的**：数字走 `fmtNum()`（大数加千分位、缺值统一「—」），时间走 `fmtWhen()`
+   （主视图给相对时间，绝对时间放 `title`）。别在模板里直接拼裸数字。
+7. **术语固定**：站点的「槽」写作槽位/活动槽/空闲槽；第三方插件的目录在文案里叫**插件目录**（不写 `profile`，
+   命令示例里的 `--profile web` 是原样照抄，不算）；「条目」= dsh 配置树里的开关，一个插件可能带多个条目。
 
 验证界面改动的最小集：`page-check.js`（静态：语法/元素 id/接口/无外链）+ `page-runtime-check.js`
 （真起服务，把内联脚本放进 DOM 桩里跑真实接口数据）+ `tests/run-all.js`。

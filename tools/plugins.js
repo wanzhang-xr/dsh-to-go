@@ -337,21 +337,38 @@ function slotDshVersion() {
   return (j && j.version) || null;
 }
 
-/** 第三方包：profile 的 node_modules（pnpm 装进来的） */
+/**
+ * 第三方包：**以 profile 的 package.json 的 dependencies 为准**——那才是「用户装了什么」的事实来源。
+ * node_modules 里其余的（@deepseek-ai/dsh-base、dsh-web-app 的传递依赖树，几百个）不是插件，
+ * 不能做成卡片、更不能给「删除」按钮（删了会把 dsh 自己搞坏）。
+ */
 function installedPackages(profile) {
-  const base = path.join(profileDir(profile), 'node_modules');
+  const pdir = profileDir(profile);
+  let j = null;
+  try { j = JSON.parse(fs.readFileSync(path.join(pdir, 'package.json'), 'utf8')); } catch (e) { return []; }
+  const deps = (j && j.dependencies) || {};
   const out = [];
-  const add = (full, dir) => { const info = pkgInfo(full, dir, 'third-party'); if (info.pkg) out.push(info); };
+  for (const name of Object.keys(deps)) {
+    const info = pkgInfo(name, path.join(pdir, 'node_modules', name), 'third-party');
+    info.spec = String(deps[name] || '');       // 装的时候用的范围/来源（github:xxx、^1.2.3 …）
+    if (info.pkg) out.push(info);
+  }
+  return out;
+}
+
+/** node_modules 里的包总数（含传递依赖）：只用于在页面上说明「为什么这里不止那几个包」 */
+function profileNodeModulesCount(profile) {
+  const base = path.join(profileDir(profile), 'node_modules');
+  let n = 0;
   try {
     for (const e of fs.readdirSync(base, { withFileTypes: true })) {
       if (!e.isDirectory() || e.name.startsWith('.')) continue;
-      const p = path.join(base, e.name);
       if (e.name.startsWith('@')) {
-        try { for (const sub of fs.readdirSync(p)) add(e.name + '/' + sub, path.join(p, sub)); } catch (err) { /* 忽略 */ }
-      } else add(e.name, p);
+        try { n += fs.readdirSync(path.join(base, e.name)).length; } catch (err) { /* 忽略 */ }
+      } else n++;
     }
-  } catch (e) { /* 还没装过第三方包 */ }
-  return out;
+  } catch (e) { /* 还没装过任何东西 */ }
+  return n;
 }
 
 /** 条目按包名归并（子条目 '@deepseek-ai/dsh-plugin-manager/tools' 归到包上） */
@@ -410,6 +427,7 @@ function catalog(opts = {}) {
     counts: {
       officialCards: official.length, officialPackages: officialPackagesAll,
       thirdPartyCards: thirdParty.length, entries: entries.length, orphan: orphanEntries.length,
+      depPackages: profileNodeModulesCount(profile),
     },
   };
 }
@@ -421,7 +439,7 @@ module.exports = {
   pnpmBinDir, pnpmCjs, pnpmInfo, pnpmEnv, installPnpm,
   validPackageName, validInstallSpec, searchNpm, listInstalled,
   slotDir, slotDshVersion, readPkgJson, authorOf, pkgInfo,
-  officialPackages, installedPackages, groupEntries, catalog,
+  officialPackages, installedPackages, profileNodeModulesCount, groupEntries, catalog,
 };
 
 if (require.main === module) {

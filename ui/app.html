@@ -1468,7 +1468,8 @@ function renderPlugins() {
 
   // 第三方（已安装）
   const third = r.thirdParty || [];
-  el('third-count').textContent = '已装 ' + third.length + ' 个';
+  el('third-count').textContent = '已装 ' + third.length + ' 个' +
+    (r.counts.depPackages ? '（profile 里另有 ' + r.counts.depPackages + ' 个随 dsh 与插件一起装进来的依赖包，不是插件）' : '');
   el('third-cards').innerHTML = third.map((p) => thirdCard(p, running)).join('');
   el('third-empty').textContent = third.length ? ''
     : '还没装第三方插件：切到「插件市场」挑一个，或用下面的「按包名手动安装」。';

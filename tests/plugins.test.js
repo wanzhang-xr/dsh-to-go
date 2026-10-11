@@ -9,6 +9,7 @@ const P = require('../tools/plugins.js');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-to-go-plugins-'));
 process.env.WZD_DATA_DIR = path.join(TMP, 'data');
 fs.mkdirSync(process.env.WZD_DATA_DIR, { recursive: true });
+P.setRoots({ data: process.env.WZD_DATA_DIR });   // 本文件所有用例都指向临时数据目录（不要碰仓库真实的 data\）
 
 // 真实 dump 的片段（含：官方默认停用、!!js 条件控制、嵌套的 - id:、bundle 分段注释）
 const FIXTURE = [
@@ -88,6 +89,37 @@ test('listInstalled：profile 没初始化时不报错、如实说没有', () =>
   assert.strictEqual(r.exists, false);
   assert.deepStrictEqual(r.installed, []);
   assert.ok(r.dir.includes('profiles'));
+});
+
+test('installedPackages：只认 package.json 的 dependencies，传递依赖不算插件', () => {
+  const pdir = path.join(process.env.WZD_DATA_DIR, 'profiles', 'web');
+  fs.mkdirSync(path.join(pdir, 'node_modules', 'dsh-better-sidebar'), { recursive: true });
+  fs.mkdirSync(path.join(pdir, 'node_modules', 'semver'), { recursive: true });
+  fs.mkdirSync(path.join(pdir, 'node_modules', '@deepseek-ai', 'dsh-base'), { recursive: true });
+  fs.writeFileSync(path.join(pdir, 'package.json'), JSON.stringify({
+    name: 'dsh-profile-web', private: true,
+    dependencies: { 'dsh-better-sidebar': '^0.25.0', 'dsh-at-file': 'github:FSMargoo/dsh-at-file#abc123' },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'dsh-better-sidebar', 'dsh-at-file'] } },
+  }), 'utf8');
+  fs.writeFileSync(path.join(pdir, 'node_modules', 'dsh-better-sidebar', 'package.json'),
+    JSON.stringify({ name: 'dsh-better-sidebar', version: '0.25.0', description: '侧栏', peerDependencies: { '@deepseek-ai/cordis': '^4.0.1' } }), 'utf8');
+
+  const list = P.installedPackages('web');
+  assert.deepStrictEqual(list.map((x) => x.pkg).sort(), ['dsh-at-file', 'dsh-better-sidebar']);
+  const sb = list.find((x) => x.pkg === 'dsh-better-sidebar');
+  assert.strictEqual(sb.version, '0.25.0');
+  assert.strictEqual(sb.spec, '^0.25.0', '装的时候用的范围要带出来');
+  assert.strictEqual(sb.kind, 'third-party');
+  assert.ok(!list.some((x) => x.pkg === 'semver'), '传递依赖不能被当成插件（更不能给删除按钮）');
+  assert.ok(!list.some((x) => x.pkg === '@deepseek-ai/dsh-base'), '官方 bundle 也不是第三方插件');
+  assert.strictEqual(P.profileNodeModulesCount('web'), 3, 'node_modules 里是 3 个（含传递依赖）');
+});
+
+test('installedPackages：profile 没装过东西时返回空数组（不抛异常）', () => {
+  const pdir = path.join(process.env.WZD_DATA_DIR, 'profiles', 'empty');
+  fs.mkdirSync(pdir, { recursive: true });
+  assert.deepStrictEqual(P.installedPackages('empty'), []);
+  assert.strictEqual(P.profileNodeModulesCount('empty'), 0);
 });
 
 test('CLI：setup-pnpm / list / installed 三个子命令都能跑（退出码正确）', () => {

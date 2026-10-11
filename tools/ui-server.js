@@ -140,7 +140,7 @@ function cmpVersion(a, b) {
 }
 
 let VERSIONS_CACHE = { at: 0, data: null };
-let PLUGIN_CACHE = { at: 0, data: null };
+let PLUGIN_CACHE = { at: 0, kind: null, data: null };   // kind: 'entries' | 'catalog'——两个接口形状不同，别互相污染
 /** 从 npm 官方源取 dsh 的版本列表（失败自动换 npmmirror；5 分钟内复用缓存）。 */
 async function fetchVersions(force) {
   const now = Date.now();
@@ -691,8 +691,8 @@ async function handleApi(req, res, url) {
       const P = require('./plugins.js');
       const profile = url.searchParams.get('profile') || 'web';
       const now = Date.now();
-      if (url.searchParams.get('force') === '1' || !PLUGIN_CACHE.data || (now - PLUGIN_CACHE.at) > 30000) {
-        PLUGIN_CACHE = { at: now, data: P.listEntries({ profile }) };
+      if (url.searchParams.get('force') === '1' || !PLUGIN_CACHE.data || PLUGIN_CACHE.kind !== 'entries' || (now - PLUGIN_CACHE.at) > 30000) {
+        PLUGIN_CACHE = { at: now, kind: 'entries', data: P.listEntries({ profile }) };
       }
       const d = PLUGIN_CACHE.data;
       return send(200, {
@@ -769,8 +769,8 @@ async function handleApi(req, res, url) {
       const P = require('./plugins.js');
       const profile = url.searchParams.get('profile') || 'web';
       const now = Date.now();
-      if (url.searchParams.get('force') === '1' || !PLUGIN_CACHE.data || (now - PLUGIN_CACHE.at) > 30000) {
-        PLUGIN_CACHE = { at: now, data: P.catalog({ profile }) };
+      if (url.searchParams.get('force') === '1' || !PLUGIN_CACHE.data || PLUGIN_CACHE.kind !== 'catalog' || (now - PLUGIN_CACHE.at) > 30000) {
+        PLUGIN_CACHE = { at: now, kind: 'catalog', data: P.catalog({ profile }) };
       }
       const c = PLUGIN_CACHE.data;
       return send(200, {

@@ -295,6 +295,25 @@ dsh 当场报 `ValidationError: $.providers.<站点>.models[0].contextWindow exp
 验收：单测 **101/101**（新增 market 13 项、compat 12 项）；页面静态核查 5/5；页面运行期核查**全部通过**（175 张官方卡片、
 市场 4489 个 / 188 页、详情面板联网算出「适配本槽」）；接口实测（目录/市场/详情+兼容/偏好存盘/404/401 门禁）。
 
+## 4.12 插件装卸修不了的两道坎：pnpm 大版本 + 新包冷却（用户报「无法删除插件」）
+
+用户报：点「删除」失败、退出码 1，页面「重新读取」也一样。读盘上 `data\jobs\` 的真日志，是**两个各自独立的 pnpm 层问题**：
+
+| 现象 | 真根因 | 处理 |
+|---|---|---|
+| `ERR_PNPM_UNEXPECTED_STORE` | profile 是 **pnpm 12.11.2** 装的（`node_modules\.modules.yaml` 里 `packageManager` + `storeDir: F:\.pnpm-store\v11`），而盘上只有 pnpm 10（store `runtime\pnpm-store\v10`）。pnpm **跨大版本共用 store 一律拒活**，所以连删除都失败 | 盘上**按大版本并存**：默认大版本 10 用 `runtime\pnpm`，其他用 `runtime\pnpm-<major>`；操作 profile 前用 `profileStore()` 读出它要的大版本与 store，挑对应那份 pnpm + 把 `npm_config_store_dir` 指到 store **父目录**（记录里带 `\v11` 后缀，环境变量要上一级） |
+| `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | pnpm 12 默认「新包冷却」24 小时，lockfile 里有刚发布 23 小时的包（`dshmarket@1.66.15`），解析时整份 lockfile 都被核对 → 普通删除也被拦 | **不偷偷关这条安全策略**：页面给一个默认关闭的开关，勾上才按 `--config.minimumReleaseAge=0` 跑（存 `ui-prefs.json`） |
+
+顺带修掉的两处「想当然」：① `.modules.yaml` 名字叫 yaml、**内容其实是 JSON**（带缩进、键带引号）——按 JSON 解析；
+② pnpm 大版本的**启动方式也不同**：10 是 `bin/pnpm.cjs`（node 跑），12 是原生 `pnpm.exe` → 用 `pnpmCmd(major)` 取 {cmd,args}，别写死。
+
+验收（都是先复现、后证明修好）：
+- **真机复现 + 修复**：造一个 pnpm 12 装的假 profile（真装包）→ 用旧接线（pnpm 10 + 我们的 store）`remove` **复现** `ERR_PNPM_UNEXPECTED_STORE`；
+  换新接线（pnpm 12 + profile 记录的 store）同一条 `remove` **成功**，包真从 `node_modules` 消失、`package.json` 也清了，`add` 也能装回去。
+- **在用户的 F 盘上、走 dsh 真实链路**（`dsh plugin --profile web install --dry-run`，不改动任何东西）：原样 → 退出码 1 + `MINIMUM_RELEASE_AGE_VIOLATION`；带 `--config.minimumReleaseAge=0` → **退出码 0**。
+- 单测 **106/106**（新增 profileStore/pnpmFor 解析、大版本不顶替、relaxArgs/pluginOpArgs 共 3 组）；页面静态 5/5；页面运行期核查 **75/75**（含新断言：pnpm 状态行显示「就绪 v12.11.2」、「放宽新包冷却」开关默认关闭）。
+- 页面失败提示改为**读日志里的真实错误码**再翻译成人话（`jobFailHint()`），而不是只说「退出码 1」。
+
 ## 5. 视觉基线（ui-ux-pro-max 输出，实际采用部分）
 
 - 风格：Dark Mode (OLED)，深色优先；浅色不做默认。

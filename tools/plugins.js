@@ -159,50 +159,196 @@ function listEntries(opts) {
   return { ok: true, entries, state, dumpLines: d.lines };
 }
 
-// ------------------------------------------------------------------ pnpm
-function pnpmBinDir() { return path.join(PNPM_DIR, 'node_modules', '.bin'); }
-function pnpmCjs() { return path.join(PNPM_DIR, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'); }
+// ------------------------------------------------------------------ pnpm（按大版本并存，与 profile 对齐）
+/**
+ * pnpm 的 store 布局是**按大版本分目录**的（v10 / v11…），而且 pnpm 有一条硬检查：
+ * 如果 node_modules 是从别的 store 链接来的，它会直接拒绝任何操作（ERR_PNPM_UNEXPECTED_STORE）。
+ * 用户的盘上很可能既有我们带的 pnpm，也有别处（npx pnpm、其他工具）装的插件，
+ * 所以这里做两件事：
+ *   1) 按大版本并存 pnpm：runtime/pnpm（老的 10）+ runtime/pnpm-<major>（其他版本）；
+ *   2) 操作某个 profile 时，用它的 .modules.yaml 里记的那份 pnpm 大版本 + store 位置。
+ */
+const DEFAULT_PNPM_MAJOR = '10';
 
-/** pnpm 是否可用：优先盘上自带的那份（不依赖宿主装没装）。 */
-function pnpmInfo() {
-  const ours = pnpmCjs();
-  const have = fs.existsSync(ours);
-  let version = null;
-  if (have) {
-    const r = spawnSync(NODE_EXE, [ours, '--version'], { encoding: 'utf8', timeout: 60000 });
-    version = r.status === 0 ? String(r.stdout || '').trim() : null;
+function pnpmPkgDir(root) { return path.join(root, 'node_modules', 'pnpm', 'package.json'); }
+function pnpmVersionIn(dir) {
+  try {
+    const j = JSON.parse(fs.readFileSync(pnpmPkgDir(dir), 'utf8'));
+    return (j && j.version) ? String(j.version) : null;
+  } catch (e) { return null; }
+}
+/** 某大版本的 pnpm 装在哪（10 优先用老位置 runtime/pnpm；其他版本各占 runtime/pnpm-<major>） */
+function pnpmDirFor(major) {
+  const m = String(major || DEFAULT_PNPM_MAJOR);
+  const legacy = PNPM_DIR;
+  const per = path.join(RUNTIME, 'pnpm-' + m);
+  if (m === DEFAULT_PNPM_MAJOR && pnpmVersionIn(legacy)) return legacy;
+  if (pnpmVersionIn(per)) return per;
+  return per;   // 该大版本还没装 → 给它规范位置（装的时候就装这里，别拿别的版本顶替）
+}
+function pnpmBinDirIn(dir) { return path.join(dir, 'node_modules', '.bin'); }
+/**
+ * pnpm 自己的入口脚本。注意大版本之间布局会变：pnpm 10 是 bin/pnpm.cjs（CJS），
+ * pnpm 12 变成 bin/pnpm.mjs（ESM）＋原生二进制（.bin/pnpm.cmd 走那条）。
+ * 这里按存在性挑一个能用 `node <file>` 跑的（.mjs 也能跑），别写死成 bin/pnpm.cjs。
+ */
+function pnpmCjsIn(dir) {
+  const base = path.join(dir, 'node_modules', 'pnpm');
+  for (const rel of ['bin/pnpm.cjs', 'bin/pnpm.mjs', 'bin/pnpm.js']) {
+    if (fs.existsSync(path.join(base, rel))) return path.join(base, rel);
   }
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(base, 'package.json'), 'utf8'));
+    const b = j && j.bin && (typeof j.bin === 'string' ? j.bin : j.bin.pnpm);
+    if (b && /\.(cjs|mjs|js)$/.test(b)) {
+      const p = path.join(base, b);
+      if (fs.existsSync(p)) return p;
+    }
+  } catch (e) { /* 忽略 */ }
+  return path.join(base, 'bin', 'pnpm.cjs');
+}
+function pnpmBinDir(major) { return pnpmBinDirIn(pnpmDirFor(major)); }
+function pnpmCjs(major) { return pnpmCjsIn(pnpmDirFor(major)); }
+
+/**
+ * 怎么把 pnpm 跑起来（大版本之间方式不同）：
+ *   pnpm 12 自带原生二进制 node_modules/pnpm/pnpm.exe → 直接跑它
+ *   pnpm 10 是 bin/pnpm.cjs → node 跑它
+ * 返回 {cmd, args}，调用方 spawnSync(cmd, args.concat(实际参数)) 即可。
+ */
+function pnpmCmdIn(dir) {
+  const base = path.join(dir, 'node_modules', 'pnpm');
+  const exeName = process.platform === 'win32' ? 'pnpm.exe' : 'pnpm';
+  const exe = path.join(base, exeName);
+  if (fs.existsSync(exe)) return { cmd: exe, args: [], mode: 'native' };
+  const cjs = path.join(base, 'bin', 'pnpm.cjs');
+  if (fs.existsSync(cjs)) return { cmd: NODE_EXE, args: [cjs], mode: 'cjs' };
+  const mjs = path.join(base, 'bin', 'pnpm.mjs');
+  if (fs.existsSync(mjs)) return { cmd: NODE_EXE, args: [mjs], mode: 'mjs' };
+  return { cmd: NODE_EXE, args: [path.join(base, 'bin', 'pnpm.cjs')], mode: 'missing' };
+}
+function pnpmCmd(major) { return pnpmCmdIn(pnpmDirFor(major)); }
+
+/**
+ * 读 profile 里 pnpm 留下的元信息（谁装的、store 在哪、什么链接方式）。
+ * 文件是 node_modules/.modules.yaml —— 内容恰好是 JSON 形态的标量，按行解析即可。
+ */
+function profileStore(profile) {
+  const pdir = profileDir(profile);
+  const f = path.join(pdir, 'node_modules', '.modules.yaml');
+  let text = null;
+  try { text = fs.readFileSync(f, 'utf8'); } catch (e) { text = null; }
+  if (!text) return { exists: false, file: f, profileDir: pdir, major: null, storeDir: null };
+  // 这个文件叫 .yaml，但 pnpm 实际写的是 JSON（带缩进、键带引号）；按 JSON 解析，失败再退回 YAML 式
+  let obj = null;
+  try { obj = JSON.parse(text); } catch (e) { obj = null; }
+  const val = (key) => {
+    if (obj && obj[key] !== undefined && obj[key] !== null) return obj[key];
+    const m = new RegExp('^\\s*"?' + key + '"?\\s*:\\s*(.+?)\\s*$', 'm').exec(text);
+    if (!m) return null;
+    const raw = m[1];
+    if (raw[0] === '"' || raw[0] === "'") {
+      try { return JSON.parse(raw[0] === '"' ? raw : '"' + raw.slice(1, -1) + '"'); } catch (e) { return raw.slice(1, -1); }
+    }
+    return raw;
+  };
+  const pm = val('packageManager');                       // 形如 pnpm@12.11.2
+  const pnpmVersion = pm ? (String(pm).split('@')[1] || null) : null;
+  const storeDir = val('storeDir');
+  let major = pnpmVersion ? String(pnpmVersion).split('.')[0] : null;
+  if (!major && storeDir) { const m = /v(\d+)$/.exec(String(storeDir)); if (m) major = m[1]; }
+  // .modules.yaml 里记的是**带布局后缀**的完整路径（…\\.pnpm-store\\v11）；而 store-dir 配置要的是父目录
+  const m2 = storeDir ? /^(.*)[\\/]v(\d+)$/.exec(String(storeDir)) : null;
+  const storeRoot = m2 ? m2[1] : (storeDir || null);
+  const storeLayout = m2 ? ('v' + m2[2]) : null;
   return {
-    ok: have && !!version, ours: have, dir: PNPM_DIR, version,
-    store: PNPM_STORE,
-    hint: have ? null : '盘上还没有 pnpm：点「准备 pnpm」装一份（约几 MB，装在本盘上，不碰宿主）',
+    exists: true, file: f, profileDir: pdir,
+    packageManager: pm, pnpmVersion, major,
+    storeDir: storeDir || null, storeRoot, storeLayout,
+    nodeLinker: val('nodeLinker'), layoutVersion: val('layoutVersion'), lockfileVersion: val('lockfileVersion'),
+    storeMissing: !!(storeDir && !fs.existsSync(storeDir)),
   };
 }
 
-/** 给子进程环境加上 pnpm 与盘上的 store（dsh 是按名字在 PATH 里找 pnpm 的）。 */
-function pnpmEnv(base) {
+/** 针对某个 profile 选好 pnpm 与 store（装卸插件时用它） */
+function pnpmFor(profile) {
+  const st = profileStore(profile || 'web');
+  const wantMajor = st.major || null;
+  const major = wantMajor || DEFAULT_PNPM_MAJOR;
+  const dir = pnpmDirFor(major);
+  const version = pnpmVersionIn(dir);
+  const haveMajor = version ? String(version).split('.')[0] : null;
+  const compatible = !!version && (!wantMajor || wantMajor === haveMajor);
+  const hint = !version
+    ? (wantMajor
+      ? '这个 profile 是 pnpm ' + (st.pnpmVersion || ('v' + wantMajor)) + ' 装的，盘上还没有这一版：点「准备 pnpm」装一份到本盘（约 10 MB，不碰宿主）'
+      : '盘上还没有 pnpm：点「准备 pnpm」装一份到本盘（约 10 MB，不碰宿主）')
+    : (!compatible
+      ? '这个 profile 是 pnpm ' + (st.pnpmVersion || ('v' + wantMajor)) + ' 装的，盘上这份是 ' + version +
+        '——跨大版本共用 store 会被 pnpm 直接拒绝（ERR_PNPM_UNEXPECTED_STORE），所以装卸插件会失败。' +
+        '装一份匹配的 pnpm 即可（不改动已装的插件）。'
+      : null);
+  return {
+    profile: st, wantMajor, major, dir, version, installed: !!version, compatible,
+    bin: pnpmBinDirIn(dir), cjs: pnpmCjsIn(dir),
+    // store-dir 要设成「父目录」（pnpm 自己会在里面建 v<major>）；profile 记的是完整路径
+    store: st.storeRoot || PNPM_STORE, storeDirFull: st.storeDir || null, storeMissing: !!st.storeMissing, hint,
+  };
+}
+
+/** pnpm 是否可用（对这个 profile 而言） */
+function pnpmInfo(profile) {
+  const p = pnpmFor(profile || 'web');
+  return {
+    ok: p.compatible, ours: p.installed, dir: p.dir, version: p.version,
+    store: p.store, wantMajor: p.wantMajor, wantVersion: p.profile.pnpmVersion || null,
+    nodeLinker: p.profile.nodeLinker || null, storeMissing: p.storeMissing,
+    hint: p.hint,
+  };
+}
+
+/** 给子进程环境加上 pnpm 与「与这个 profile 匹配的」store（dsh 是按名字在 PATH 里找 pnpm）。 */
+function pnpmEnv(base, profile) {
+  const p = pnpmFor(profile || 'web');
   const env = Object.assign({}, base || process.env);
-  const bin = pnpmBinDir();
-  env.PATH = bin + path.delimiter + path.join(RUNTIME, 'node') + path.delimiter + (env.PATH || '');
-  // store 必须落在盘上：默认会写到「盘根目录 \.pnpm-store」（U 盘上就是盘根，不如放 runtime 干净）
-  env.npm_config_store_dir = PNPM_STORE;
+  env.PATH = p.bin + path.delimiter + path.join(RUNTIME, 'node') + path.delimiter + (env.PATH || '');
+  // store 必须跟着 profile 记录的位置走，否则 pnpm 会以「store 不一致」拒绝所有操作
+  env.npm_config_store_dir = p.store;
   env.PNPM_HOME = path.join(RUNTIME, 'pnpm-home');
   return env;
 }
 
-/** 把 pnpm 装到盘上（用便携 npm；需要联网）。 */
-function installPnpm(version) {
+/**
+ * 把指定大版本（或精确版本）的 pnpm 装到盘上，装进 runtime/pnpm-<major>。
+ * 默认源用 npmmirror（本机访问 npm 官方源不稳），需要联网。
+ */
+function installPnpm(versionOrMajor, opts) {
   const npmCli = path.join(RUNTIME, 'node', 'node_modules', 'npm', 'bin', 'npm-cli.js');
   if (!fs.existsSync(npmCli)) return { ok: false, error: '找不到便携 npm：' + npmCli };
-  const spec = 'pnpm@' + (version || '10');
-  const r = spawnSync(NODE_EXE, [npmCli, 'install', '--prefix', PNPM_DIR, spec, '--no-fund', '--no-audit', '--loglevel=error'], {
+  const want = String(versionOrMajor || DEFAULT_PNPM_MAJOR);
+  const major = want.split('.')[0];
+  const dir = (major === DEFAULT_PNPM_MAJOR && pnpmVersionIn(PNPM_DIR)) ? PNPM_DIR : path.join(RUNTIME, 'pnpm-' + major);
+  const registry = (opts && opts.registry) || 'https://registry.npmmirror.com';
+  const args = [npmCli, 'install', '--prefix', dir, 'pnpm@' + want, '--no-fund', '--no-audit', '--loglevel=error', '--registry', registry];
+  const r = spawnSync(NODE_EXE, args, {
     encoding: 'utf8', timeout: 900000, maxBuffer: 32 * 1024 * 1024,
     env: Object.assign({}, process.env, { npm_config_cache: path.join(RUNTIME, 'npm-cache') }),
   });
   const out = (String(r.stdout || '') + String(r.stderr || '')).trim();
-  const info = pnpmInfo();
-  if (!info.ok) return { ok: false, error: 'pnpm 装完但用不了：' + out.split('\n').slice(-3).join(' ') };
-  return { ok: true, version: info.version, text: out.split('\n').slice(-2).join(' ') };
+  const version = pnpmVersionIn(dir);
+  if (!version) return { ok: false, error: 'pnpm 装完但用不了：' + out.split('\n').slice(-3).join(' '), dir };
+  return { ok: true, version, dir, text: out.split('\n').slice(-2).join(' ') };
+}
+
+/** 插件操作的额外 pnpm 参数。目前只有一条：放宽「新包冷却」（pnpm 12 默认 minimumReleaseAge=24h，
+ *  会连普通删除都挡——因为解析时会核对整份 lockfile）。默认关，由页面上的开关显式打开。 */
+function relaxArgs(enabled) {
+  return enabled ? ['--config.minimumReleaseAge=0'] : [];
+}
+/** 组装一次插件操作的参数（dsh plugin 会把它们原样转给 pnpm） */
+function pluginOpArgs(verb, name, opts) {
+  const o = opts || {};
+  return [verb, name].concat(relaxArgs(!!o.relaxReleaseAge));
 }
 
 // ------------------------------------------------------------------ 包名与发现
@@ -436,7 +582,8 @@ module.exports = {
   ROOT, RUNTIME, PNPM_DIR, PNPM_STORE, RESERVED,
   setRoots, pluginsFile, profileDir, readState, writeState, ourChoice,
   parseEntries, dumpEntries, listEntries,
-  pnpmBinDir, pnpmCjs, pnpmInfo, pnpmEnv, installPnpm,
+  pnpmBinDir, pnpmCjs, pnpmInfo, pnpmEnv, installPnpm, relaxArgs, pluginOpArgs,
+  pnpmFor, pnpmVersionIn, pnpmDirFor, profileStore, DEFAULT_PNPM_MAJOR, pnpmCmd, pnpmCmdIn,
   validPackageName, validInstallSpec, searchNpm, listInstalled,
   slotDir, slotDshVersion, readPkgJson, authorOf, pkgInfo,
   officialPackages, installedPackages, profileNodeModulesCount, groupEntries, catalog,
@@ -448,11 +595,13 @@ if (require.main === module) {
   const LIMIT = Number(process.env.WZD_LIMIT || 40);
   const run = async () => {
     if (cmd === 'setup-pnpm') {
+      const want = process.argv[3];                       // 可以指定版本或大版本（例如 12.11.2 / 12）
       const info = pnpmInfo();
-      if (info.ok) { console.log('  便携 pnpm 已就绪：v' + info.version + '（' + PNPM_DIR + '）'); return 0; }
-      console.log('  正在把 pnpm 装到盘上：' + PNPM_DIR);
-      const r = installPnpm(process.argv[3]);
-      console.log(r.ok ? ('  完成：便携 pnpm v' + r.version + '（store 在 ' + PNPM_STORE + '）') : ('  失败：' + r.error));
+      if (info.ok && !want) { console.log('  便携 pnpm 已就绪：v' + info.version + '（' + PNPM_DIR + '）'); return 0; }
+      const target = pnpmDirFor(String(want || DEFAULT_PNPM_MAJOR).split('.')[0]);
+      console.log('  正在把 pnpm ' + (want || DEFAULT_PNPM_MAJOR) + ' 装到盘上：' + target);
+      const r = installPnpm(want);
+      console.log(r.ok ? ('  完成：pnpm v' + r.version + '（' + r.dir + '）') : ('  失败：' + r.error));
       return r.ok ? 0 : 1;
     }
     if (cmd === 'list') {

@@ -121,6 +121,15 @@ runtime\node\node.exe --test tests\sites.test.js tests\secret.test.js tests\laun
   - ⚠️ `dsh --dump-config` **不体现**覆盖层里的 `disabled` —— 想确认停用是否生效，要看 dsh 的启动输出，别拿 dump 当证据。
 - **安装 / 卸载**：按 npm 包名装卸，实际执行 `dsh plugin --profile web add|remove <包名>`（它把参数转给 profile 目录里的 pnpm）。
   - **需要 pnpm**：便携包默认不带。页面上点一次「准备 pnpm」就会装到本盘（`runtime\pnpm`，约几 MB，需要联网；store 也落在盘上，不碰宿主）。
+  - ⚠️ **pnpm 要按大版本并存**（踩过：用户报「无法删除插件，退出码 1」）。profile 里 `node_modules\.modules.yaml` 记着**当初是谁装的**（`packageManager: pnpm@12.11.2`）和它的 store 位置；
+    pnpm **跨大版本共用 store 会直接拒活**（`ERR_PNPM_UNEXPECTED_STORE`），所有装卸/删除都失败，页面「重新读取」当然也没用（不是读错，是 pnpm 层不干活）。
+    所以：盘上按大版本各装一份（`runtime\pnpm` 给默认大版本 10，其他版本用 `runtime\pnpm-<major>`），操作某个 profile 前先用 `profileStore(profile)` 读出它需要的大版本与 store，
+    再挑对应那份 pnpm、把 `npm_config_store_dir` 指到它记录的 store **父目录**（`.modules.yaml` 里记的是带 `\v11` 布局后缀的完整路径，环境变量要的是它上一级）。
+    大版本的启动方式也不同：pnpm 10 是 `bin/pnpm.cjs`（用 node 跑），pnpm 12 是原生 `pnpm.exe`——用 `pnpmCmd(major)` 拿 {cmd,args}，别写死。
+    另外 `.modules.yaml` **名字叫 yaml，内容其实是 JSON**（带缩进、键带引号）——按 JSON 解析，别按行正则。
+  - ⚠️ **pnpm 12 默认有「新包冷却」**（`minimumReleaseAge` 24 小时）：lockfile 里只要有 24 小时内发布的包，**连普通删除都会被拦**（`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，解析时会核对整份 lockfile）。
+    这是供应链安全策略，我们**不偷偷关**：插件页给一个默认关闭的开关，勾上才按 `--config.minimumReleaseAge=0` 跑（存 `ui-prefs.json`）。
+    任务失败时页面会读日志里的真实错误码，把这两种拦路虎翻译成人话（见 `jobFailHint()`）。
   - **版本闸门**：插件的 `peerDependencies` 与当前 dsh 版本不匹配时 dsh 直接拒绝安装，并打印一条「接受风险」的命令。想装就得显式豁免（页面「插件」分区里那个折叠起来的危险入口）；dsh 的警告是认真的——可能崩、可能丢数据。
   - **发现**：dsh 没有官方插件索引，npm 上也不带统一标记。页面提供「在 npm 里搜一搜」，搜到后**请自行确认**这个包是不是 dsh 插件。
 

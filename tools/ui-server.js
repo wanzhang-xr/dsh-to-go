@@ -697,7 +697,7 @@ async function handleApi(req, res, url) {
       const d = PLUGIN_CACHE.data;
       return send(200, {
         ok: d.ok, error: d.error || null, profile,
-        pnpm: P.pnpmInfo(),
+        pnpm: P.pnpmInfo(profile),
         installed: P.listInstalled(profile),
         entries: d.entries || [],
         disabled: (d.state && d.state.disabled) || [],
@@ -736,7 +736,7 @@ async function handleApi(req, res, url) {
     }
 
     if (p === '/api/plugins/pnpm-setup' && req.method === 'POST') {
-      const r = jobsLib.spawnJob('pnpm-setup', {});
+      const r = jobsLib.spawnJob('pnpm-setup', { version: body.version ? String(body.version) : '', profile: String(body.profile || 'web') });
       if (!r.ok) return send(409, { error: r.error });
       return send(200, { ok: true, job: r.job });
     }
@@ -756,7 +756,9 @@ async function handleApi(req, res, url) {
       if (!P.validInstallSpec(name)) return send(400, { error: '安装目标不合法：支持 npm 包名、github:作者/仓库、https 的 tgz 链接' });
       const profile = String(body.profile || 'web');
       const verb = p === '/api/plugins/install' ? 'add' : 'remove';
-      const r = jobsLib.spawnJob('plugin-pnpm', { args: [verb, name], profile });
+      const relax = !!(readPrefs().plugins && readPrefs().plugins.relaxReleaseAge);
+      const args = P.pluginOpArgs(verb, name, { relaxReleaseAge: relax });
+      const r = jobsLib.spawnJob('plugin-pnpm', { args, profile });
       if (!r.ok) return send(409, { error: r.error });
       PLUGIN_CACHE = { at: 0, data: null };
       return send(200, { ok: true, job: r.job, command: 'dsh plugin --profile ' + profile + ' ' + verb + ' ' + name });
@@ -777,7 +779,7 @@ async function handleApi(req, res, url) {
         ok: c.ok, error: c.error || null,
         profile: c.profile, profileDir: c.profileDir, slot: c.slot, slotVersion: c.slotVersion,
         official: c.official, thirdParty: c.thirdParty, counts: c.counts, orphan: c.orphanEntries.length,
-        pnpm: P.pnpmInfo(),
+        pnpm: P.pnpmInfo(profile),
         disabled: P.readState().disabled || [],
         dshRunning: dshStatus().running,
         cachedAt: new Date(PLUGIN_CACHE.at).toISOString(),

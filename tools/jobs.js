@@ -149,10 +149,21 @@ const KINDS = {
     },
     validate: (o) => (Array.isArray(o.args) && o.args.length ? null : '缺少 pnpm 参数'),
   },
-  // 把 pnpm 装到盘上（dsh plugin 靠 PATH 找它；便携包本身不带）
+  // 把 pnpm 装到盘上（dsh plugin 靠 PATH 找它；便携包本身不带）。
+  // version 可以指定（例如 profile 是 pnpm 12 装的，就得装 12 那份），不指定则用 profile 需要的大版本。
   'pnpm-setup': {
-    label: () => '准备 pnpm（插件装/卸要用）',
-    cmd: () => [nodeExe(), path.join(__dirname, 'plugins.js'), 'setup-pnpm'],
+    label: (o) => '准备 pnpm' + (o && o.version ? '（' + o.version + '）' : ''),
+    cmd: (o) => {
+      const opts = o || {};
+      const want = opts.version || (function () {
+        try {
+          const p = require('./plugins.js');
+          const info = p.pnpmInfo(opts.profile || 'web');
+          return info.wantVersion || info.wantMajor || '';
+        } catch (e) { return ''; }
+      })();
+      return [nodeExe(), path.join(__dirname, 'plugins.js'), 'setup-pnpm'].concat(want ? [String(want)] : []);
+    },
     validate: () => null,
   },
   custom: {
@@ -372,7 +383,7 @@ function runJob(id) {
       DSH_AGENTS_HOME: path.join(DATA, 'agents'),
       npm_config_cache: path.join(RUNTIME, 'npm-cache'),
     });
-    const env = meta.kind === 'plugin-pnpm' ? require('./plugins.js').pnpmEnv(baseEnv) : baseEnv;
+    const env = meta.kind === 'plugin-pnpm' ? require('./plugins.js').pnpmEnv(baseEnv, (meta.opts && meta.opts.profile) || 'web') : baseEnv;
     child = spawn(cmd[0], cmd.slice(1), {
       cwd: ROOT,
       env,

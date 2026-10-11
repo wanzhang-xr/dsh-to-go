@@ -122,6 +122,55 @@ test('installedPackages：profile 没装过东西时返回空数组（不抛异�
   assert.strictEqual(P.profileNodeModulesCount('empty'), 0);
 });
 
+test('profileStore / pnpmFor：读 .modules.yaml（JSON 形态）并挑对 pnpm 大版本', () => {
+  const BS = String.fromCharCode(92);
+  const pdir = path.join(process.env.WZD_DATA_DIR, 'profiles', 'foreign');
+  fs.mkdirSync(path.join(pdir, 'node_modules'), { recursive: true });
+  fs.writeFileSync(path.join(pdir, 'node_modules', '.modules.yaml'), JSON.stringify({
+    hoistPattern: ['*'], layoutVersion: 5, nodeLinker: 'hoisted',
+    packageManager: 'pnpm@99.1.0',                              // 用一个肯定没装的版本，判定才稳定
+    storeDir: 'Q:' + BS + 'other-store' + BS + 'v99',           // 记录的是带布局后缀的完整路径
+    virtualStoreDir: 'x',
+  }, null, 2), 'utf8');
+
+  const st = P.profileStore('foreign');
+  assert.strictEqual(st.exists, true, '文件在，就该读出东西');
+  assert.strictEqual(st.packageManager, 'pnpm@99.1.0');
+  assert.strictEqual(st.pnpmVersion, '99.1.0');
+  assert.strictEqual(st.major, '99');
+  assert.strictEqual(st.nodeLinker, 'hoisted');
+  assert.strictEqual(st.storeRoot, 'Q:' + BS + 'other-store', 'store-dir 要的是父目录，得把 v99 剥掉');
+  assert.strictEqual(st.storeLayout, 'v99');
+  assert.strictEqual(st.storeMissing, true, 'Q: 这个盘在测试机上不存在');
+
+  const info = P.pnpmInfo('foreign');
+  assert.strictEqual(info.wantMajor, '99');
+  assert.strictEqual(info.wantVersion, '99.1.0');
+  assert.strictEqual(info.ok, false, '盘上没有 pnpm 99 → 不匹配');
+  assert.ok(/99/.test(info.hint || ''), '提示里要说清需要哪个版本：' + info.hint);
+  assert.strictEqual(P.pnpmDirFor('99'), path.join(P.ROOT, 'runtime', 'pnpm-99'), '没装的大版本给规范位置，别拿别的顶替');
+});
+
+test('profileStore：没有 .modules.yaml（全新 profile）→ exists=false，按默认大版本走', () => {
+  const st = P.profileStore('empty');
+  assert.strictEqual(st.exists, false);
+  assert.strictEqual(st.major, null);
+  assert.strictEqual(st.storeDir, null);
+  assert.strictEqual(P.DEFAULT_PNPM_MAJOR, '10');
+  const info = P.pnpmInfo('empty');
+  assert.strictEqual(info.wantMajor, null);
+  assert.strictEqual(typeof info.ok, 'boolean');
+});
+
+test('relaxArgs / pluginOpArgs：放宽「新包冷却」只在显式打开时加旗标', () => {
+  assert.deepStrictEqual(P.relaxArgs(false), []);
+  assert.deepStrictEqual(P.relaxArgs(true), ['--config.minimumReleaseAge=0']);
+  assert.deepStrictEqual(P.relaxArgs(), []);
+  assert.deepStrictEqual(P.pluginOpArgs('add', 'dsh-x', {}), ['add', 'dsh-x']);
+  assert.deepStrictEqual(P.pluginOpArgs('remove', 'dsh-x', { relaxReleaseAge: true }),
+    ['remove', 'dsh-x', '--config.minimumReleaseAge=0']);
+});
+
 test('CLI：setup-pnpm / list / installed 三个子命令都能跑（退出码正确）', () => {
   const { spawnSync } = require('child_process');
   const node = process.execPath;

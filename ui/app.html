@@ -433,6 +433,10 @@ label.switch input:checked ~ .txt{color:var(--accent)}
         <span class="sub" id="plug-pnpm-note"></span>
       </div>
       <div class="flash" id="plug-out"></div>
+      <div class="row" style="margin-top:10px">
+        <label class="switch"><input type="checkbox" id="plug-relax"><span class="track"></span><span>放宽 pnpm 的「新包冷却」</span></label>
+        <span class="sub">pnpm 12 默认拒绝 24 小时内发布的包（连普通删除都会被它拦住）。勾上就按 <code class="mono">minimumReleaseAge=0</code> 跑，能装到刚发布的包——风险自负。</span>
+      </div>
     </div>
 
     <div class="card">
@@ -1140,7 +1144,9 @@ async function pollJob() {
       const mine = (s.jobs || []).find((j) => j.id === CURRENT_JOB);
       if (mine) renderJob(mine, CUR_GRID || 'job-state');
       stopPolling();
-      flash(CUR_OUT || 'job-out', '任务结束：' + (mine ? (mine.status + '　' + (mine.message || '')) : '—'), mine && mine.status === 'done' ? 'ok' : 'warn');
+      flash(CUR_OUT || 'job-out', '任务结束：' + (mine ? (mine.status + '　' + (mine.message || '')) : '—') +
+        (mine && mine.status !== 'done' ? (function () { const h = jobFailHint(); return h ? '　—　' + h : ''; })() : ''),
+        mine && mine.status === 'done' ? 'ok' : 'warn');
       await refresh();
       if (PLUG) loadPlugins(true).catch(() => {});
       return;
@@ -1339,7 +1345,7 @@ el('btn-temp').addEventListener('click', async () => {
 /* ---------------------------------------------------------------- 插件 */
 /* ---------------------------------------------------------------- 插件（卡片视图） */
 let PLUG = null;                 // /api/plugins/catalog 的结果
-let PREFS = { plugins: { showOfficial: true, showThird: true, sub: 'installed' } };
+let PREFS = { plugins: { showOfficial: true, showThird: true, sub: 'installed', relaxReleaseAge: false } };
 let OFF_Q = '';                  // 官方插件的筛选词
 let OFF_LIMIT = 24;              // 官方卡片一次显示多少张
 let MKT = { page: 1, q: '', cat: '', sort: 'stars', risk: false, data: null };
@@ -1438,10 +1444,14 @@ function renderPlugins() {
   if (!r) return;
   const pn = r.pnpm || {};
   const running = !!r.dshRunning;
+  const pnpmCell = pn.ok
+    ? '<span class="pill ok">就绪</span> v' + esc(pn.version) + (pn.nodeLinker ? '　<span class="sub">' + esc(pn.nodeLinker) + '</span>' : '')
+    : (pn.ours
+      ? '<span class="pill bad">不匹配</span> 盘上是 v' + esc(pn.version) + '，这个 profile 是 ' +
+        esc(pn.wantVersion || ('pnpm ' + (pn.wantMajor || '?'))) + ' 装的'
+      : '<span class="pill warn">未就绪</span> <span class="sub">' + esc(pn.hint || '') + '</span>');
   rows('plug-status', [
-    ['pnpm（装卸第三方插件要用）', pn.ok
-      ? '<span class="pill ok">就绪</span> v' + esc(pn.version) + '　<span class="sub mono">' + esc(pn.dir) + '</span>'
-      : '<span class="pill warn">未就绪</span> <span class="sub">' + esc(pn.hint || '') + '</span>'],
+    ['pnpm（装卸第三方插件要用）', pnpmCell],
     ['profile 目录（第三方包装这里）', '<span class="mono sub">' + esc(r.profileDir) + '</span>'],
     ['活动槽（官方插件在这里）', '<span class="mono">' + esc(r.slot) + '</span> <span class="sub">dsh ' + esc(r.slotVersion || '?') + '</span>'],
     ['dsh 状态', running
@@ -1451,8 +1461,13 @@ function renderPlugins() {
       r.counts.thirdPartyCards + ' 张第三方卡片　·　' + r.counts.entries + ' 个条目' +
       (r.counts.orphan ? '（' + r.counts.orphan + ' 个条目没归到卡片）' : '')],
   ]);
-  el('plug-pnpm-note').textContent = pn.ok ? '盘上自带（不依赖宿主装没装）' : '点「准备 pnpm」装到本盘上（约几 MB）';
+  el('plug-pnpm-note').innerHTML = pn.ok
+    ? '盘上自带（不依赖宿主装没装）' + (pn.storeMissing
+      ? '；注意：profile 记录的 store 已不在（<span class="mono">' + esc(pn.store) + '</span>），装/卸时 pnpm 会重建它'
+      : '')
+    : esc(pn.hint || '');
   el('btn-pnpm-setup').disabled = !!pn.ok || running;
+  el('btn-pnpm-setup').textContent = pn.ok ? '准备 pnpm' : (pn.wantVersion ? '装匹配的 pnpm ' + pn.wantVersion : '准备 pnpm');
 
   // 官方插件
   const q = OFF_Q.toLowerCase();
@@ -1641,6 +1656,7 @@ function applyPrefs() {
   el('block-official').hidden = !PREFS.plugins.showOfficial;
   el('block-third').hidden = !PREFS.plugins.showThird;
   const sub = PREFS.plugins.sub === 'market' ? 'market' : 'installed';
+  el('plug-relax').checked = !!PREFS.plugins.relaxReleaseAge;
   el('subtab-installed').setAttribute('aria-selected', String(sub === 'installed'));
   el('subtab-market').setAttribute('aria-selected', String(sub === 'market'));
   el('sub-installed').hidden = sub !== 'installed';
@@ -1648,9 +1664,22 @@ function applyPrefs() {
   if (sub === 'market' && !MKT.data) mktSearch(1);
 }
 
+/** 插件任务失败时，按日志里真实的错误码给一句人话（pnpm 的两种已知拦路虎） */
+function jobFailHint() {
+  const t = String((el(CUR_LOG || 'plug-log') || {}).textContent || '');
+  if (/UNEXPECTED_STORE/.test(t)) return 'pnpm 版本不匹配（这个 profile 是别的 pnpm 装的）：点上面的「装匹配的 pnpm」再试。';
+  if (/MINIMUM_RELEASE_AGE/.test(t)) return '被 pnpm 的「新包冷却」拦下（包发布还不到 24 小时）：勾上左侧的「放宽新包冷却」再试。';
+  if (PLUG && PLUG.pnpm && !PLUG.pnpm.ok && PLUG.pnpm.hint) return PLUG.pnpm.hint;
+  return '';
+}
+
 el('btn-plug-refresh').addEventListener('click', (e) => withBusy(e.currentTarget, '读取中…', () => loadPlugins(true)));
-el('btn-pnpm-setup').addEventListener('click', () => runJob('/api/plugins/pnpm-setup', {}, el('btn-pnpm-setup'), '准备中…',
-  { keepTab: true, log: 'plug-log', out: 'plug-out', jobGrid: 'plug-job' }));
+el('btn-pnpm-setup').addEventListener('click', () => {
+  const pn = (PLUG && PLUG.pnpm) || {};
+  const body = { version: (!pn.ok && pn.wantVersion) ? pn.wantVersion : '', profile: (PLUG && PLUG.profile) || 'web' };
+  runJob('/api/plugins/pnpm-setup', body, el('btn-pnpm-setup'), '安装中（约 10 MB）…',
+    { keepTab: true, log: 'plug-log', out: 'plug-out', jobGrid: 'plug-job' });
+});
 el('btn-plug-install').addEventListener('click', pluginInstall);
 el('btn-plug-search').addEventListener('click', pluginSearch);
 el('plug-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') pluginSearch(); });
@@ -1659,6 +1688,13 @@ el('plug-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') plug
 // 显示开关（状态存盘：data/ui-prefs.json，跟盘走）
 el('show-official').addEventListener('change', () => { PREFS.plugins.showOfficial = el('show-official').checked; applyPrefs(); savePrefs(); });
 el('show-third').addEventListener('change', () => { PREFS.plugins.showThird = el('show-third').checked; applyPrefs(); savePrefs(); });
+el('plug-relax').addEventListener('change', () => {
+  PREFS.plugins.relaxReleaseAge = el('plug-relax').checked;
+  applyPrefs(); savePrefs();
+  flash('plug-out', PREFS.plugins.relaxReleaseAge
+    ? '已放宽 pnpm 的「新包冷却」：之后的装卸/删除会按 minimumReleaseAge=0 跑（能装到刚发布的包）。'
+    : '已恢复 pnpm 默认的新包冷却（24 小时内的包会被拒绝）。', PREFS.plugins.relaxReleaseAge ? 'warn' : 'ok');
+});
 el('subtab-installed').addEventListener('click', () => { PREFS.plugins.sub = 'installed'; applyPrefs(); savePrefs(); });
 el('subtab-market').addEventListener('click', () => { PREFS.plugins.sub = 'market'; applyPrefs(); savePrefs(); });
 

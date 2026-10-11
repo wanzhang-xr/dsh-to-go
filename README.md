@@ -176,7 +176,7 @@ dsh 自己的凭据分层是「启动环境 > `.credentials.yaml` > 项目 `.env
 - 提交信息按 Conventional Commits 写（例：`fix(watchdog): 丢盘判定改成连续 3 次都读不到`），正文说清「为什么」和「怎么验的」；
 - PR 描述里写清 改了什么 / 为什么 / **怎么验的**；合并前 `runtime/node/node.exe tests/run-all.js` 必须全绿（改了页面就要跑页面核查，改了守护/槽位/安装/插件就要跑对应的真机 e2e）。
 
-「改了哪些东西必须补哪类验证」的门槛表见 [`AGENTS.md`](AGENTS.md) 第 10 节。
+「改了哪些东西必须补哪类验证」的门槛表见 [`AGENTS.md`](AGENTS.md) 第 11 节。
 
 仓库已开分支保护：`main` 不接受直接推送（仓库所有者的例外除外），请从自己的分支提 PR。
 

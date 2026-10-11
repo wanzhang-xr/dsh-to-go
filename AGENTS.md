@@ -170,7 +170,25 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
   页面横幅显示的是最后一条，两条的意思一样（都是「盘没了」）。
 - 页面上的体现：概览顶部横幅（`#banner`）+ 诊断页「拔盘守护」卡片 + `/api/drive-lost/clear`（要解锁）。
 
-## 10. 提交约定
+## 10. 界面改动约定（UI 相关改动前先读）
+
+界面是**单文件** `ui\app.html`（样式 + 结构 + 脚本都在一起，零外链）。改之前记住四条：
+
+1. **动效用 token，不要写死时长**：`--t-fast:120ms / --t:180ms / --t-slow:260ms` 配两条曲线
+   `--e-out`（进入，减速）/ `--e-in`（离开，加速，比进入快）。动画只动 `transform`/`opacity`，
+   不要动 `width`/`height`（会重排）。
+2. **加载要有骨架屏**：面板加载时用 `skeleton(id, 行数)` 占住版面并自动标 `aria-busy="true"`，
+   读完调 `busyDone(id)`。别只留一行「加载中…」（会让版面跳、也看不出在读什么）。
+3. **错误必须给下一步**：失败提示用 `flashAction(id, 文案, 'err'|'warn', {label, fn})` 带一个恢复动作
+   （重试 / 装匹配的 pnpm / 放宽并重试…）。只报「退出码 1」等于把问题丢回给用户。
+   插件类失败要**读日志里的真实错误码**再翻译（`jobFailHint()`），别猜。
+4. ⚠️ **`@media (prefers-reduced-motion: reduce)` 那一行不许当补丁锚点**：它必须留着（尊重系统设置）。
+   重构时把它替换掉过一次，现在运行期核查里有断言守着（`page-runtime-check.js`）。
+
+验证界面改动的最小集：`page-check.js`（静态：语法/元素 id/接口/无外链）+ `page-runtime-check.js`
+（真起服务，把内联脚本放进 DOM 桩里跑真实接口数据）+ `tests/run-all.js`。
+
+## 11. 提交约定
 
 **`main` 只接受 PR 合入的提交**，不直接往上推。理由很实际：直接推 main 的次数一多，历史就没法读了——说不清哪个提交对应哪件事，也说不清某个改动当时是怎么验的。
 

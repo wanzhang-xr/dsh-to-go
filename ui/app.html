@@ -123,6 +123,29 @@ label.switch input:checked ~ .txt{color:var(--accent)}
 #banner.danger{background:rgba(239,68,68,.18)}
 #banner .b-t{font-weight:600;margin-right:4px}
 #banner code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;font-size:12px;font-family:var(--font-mono)}
+/* 插件卡片 */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.pcard{display:flex;gap:12px;padding:12px;border:1px solid var(--border);border-radius:var(--r);background:var(--card-2)}
+.pcard .pc-icon{flex:0 0 42px;width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px}
+.pcard .pc-main{flex:1;min-width:0}
+.pcard .pc-title{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pcard .pc-title b{font-size:14px;overflow-wrap:anywhere}
+.pcard .pc-sub{color:var(--muted);font-size:12.5px;margin-top:3px;overflow-wrap:anywhere}
+.pcard .pc-desc{font-size:13px;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .pc-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+.pcard .pc-actions .btn{padding:4px 10px;min-height:30px;font-size:13px}
+.pcard .pc-actions label.switch{min-height:30px}
+.pcard.off{opacity:.66}
+.spill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;border:1px solid var(--border);background:var(--primary);color:var(--muted)}
+.spill.ok{border-color:var(--accent);color:var(--accent)}
+.spill.warn{border-color:var(--warn);color:var(--warn)}
+.spill.bad{border-color:var(--danger);color:var(--danger)}
+.subtabs{display:flex;gap:6px;margin:8px 0 10px}
+.subtabs button{background:transparent;border:1px solid transparent;border-radius:var(--r);padding:6px 12px;min-height:34px;color:var(--muted);cursor:pointer;font:inherit}
+.subtabs button[aria-selected="true"]{background:var(--primary);border-color:var(--border);color:var(--fg);font-weight:600}
+.pv{max-height:78vh;overflow:auto;width:min(760px,92vw)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin-top:10px;font-size:13px}
+.kv .k{color:var(--muted);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -400,13 +423,12 @@ label.switch input:checked ~ .txt{color:var(--accent)}
   <!-- ============================================ 插件 -->
   <section id="tab-plugins" role="tabpanel" hidden>
     <div class="card">
-      <h2>插件维护（未运行状态下进行）</h2>
-      <p class="sub">dsh 的插件挂在本盘的 <b>profile</b>（<code>data\profiles\web</code>）上：条目启停写在我们的覆盖层里
-        （作为 <code>--patch</code> 传给 dsh），装/卸交给 profile 目录里的 <b>pnpm</b>。
-        <b>dsh 运行时不能改</b>（会改启动配置），运行中这些按钮会被拒绝。</p>
+      <h2>插件环境</h2>
+      <p class="sub">官方插件随 dsh 装在<b>活动槽</b>里；第三方包装在本盘的 <b>profile</b>（<code class="mono">data/profiles/web</code>，由盘上的 <b>pnpm</b> 管理）。
+        条目启停写在我们的覆盖层里（作为 <code>--patch</code> 传给 dsh），<b>重启 dsh 生效</b>；<b>dsh 运行时不能改</b>（按钮会被拒绝）。</p>
       <div class="grid" id="plug-status"></div>
       <div class="row" style="margin-top:12px">
-        <button class="btn" id="btn-plug-refresh">刷新</button>
+        <button class="btn" id="btn-plug-refresh">重新读取</button>
         <button class="btn primary" id="btn-pnpm-setup">准备 pnpm</button>
         <span class="sub" id="plug-pnpm-note"></span>
       </div>
@@ -414,46 +436,80 @@ label.switch input:checked ~ .txt{color:var(--accent)}
     </div>
 
     <div class="card">
-      <h2>已装的插件包</h2>
-      <p class="sub">这就是 profile 的 <code>package.json</code>：装了的包会被 pnpm 管理，<b>勾选「加载」</b>的才会进入插件树。</p>
-      <div id="plug-installed" class="sub">加载中…</div>
+      <h2>显示哪些</h2>
+      <div class="row" style="gap:22px">
+        <label class="switch"><input type="checkbox" id="show-official"><span class="track"></span><span>官方插件</span></label>
+        <label class="switch"><input type="checkbox" id="show-third"><span class="track"></span><span>第三方插件</span></label>
+        <span class="sub">开关跟着盘走（存在 <code class="mono">data/ui-prefs.json</code>）</span>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>安装 / 卸载</h2>
-      <p class="sub">dsh <b>没有官方的插件索引</b>，所以这里按 npm 包名来装。找包可以先在下面的搜索框里按关键词搜 npm，
-        再自行确认它是不是 dsh 插件（版本不匹配时 dsh 会拒绝安装，日志里会给出一条「接受风险」的命令）。</p>
+    <div class="card" id="block-official">
+      <h2>官方插件 <span class="sub" id="official-count"></span></h2>
+      <p class="sub">dsh 自带的包（<code>@deepseek-ai/*</code>），随活动槽一起装，<b>不能删除</b>。可以停用单个条目——
+        注意<b>停用错了条目 dsh 会启动失败</b>（另标了「官方条件控制」的那种，本来由 dsh 自己按条件决定）。</p>
       <div class="row">
-        <div class="f"><label for="plug-name">npm 包名</label><input id="plug-name" placeholder="@scope/name 或 name" class="mono"></div>
-        <button class="btn primary" id="btn-plug-install">安装</button>
+        <div class="f"><label for="official-filter">筛选（条目 id 或包名）</label><input id="official-filter" placeholder="例如 tool / llm / agent"></div>
+        <span class="sub" id="official-shown"></span>
       </div>
-      <div class="row" style="margin-top:6px">
-        <div class="f"><label for="plug-q">在 npm 里搜一搜（关键词）</label><input id="plug-q" placeholder="例如 dsh tool / 作者名 / 包名片段"></div>
-        <button class="btn" id="btn-plug-search">搜索</button>
-      </div>
-      <div id="plug-search" class="sub" style="margin-top:6px">（搜索结果会列在这里，点一行就能填进上面的包名框）</div>
-
-      <details style="margin-top:12px">
-        <summary class="sub">版本不匹配时：接受风险并安装（危险，dsh 会警告可能崩溃/丢数据）</summary>
-        <div class="row" style="margin-top:8px">
-          <div class="f"><label for="plug-av-spec">包名@版本（照抄 dsh 日志里给出的那一行）</label><input id="plug-av-spec" class="mono" placeholder="@scope/name@1.2.3"></div>
-          <div class="f"><label for="plug-av-ver">dsh 版本</label><input id="plug-av-ver" class="mono" placeholder="0.2.1-alpha.2"></div>
-          <button class="btn danger" id="btn-plug-allow">接受风险</button>
-        </div>
-        <div class="flash" id="plug-av-out"></div>
-      </details>
-    </div>
-
-    <div class="card">
-      <h2>条目启停</h2>
-      <p class="sub">勾掉（停用）后重启 dsh 生效。注意：<b>停用错了条目 dsh 会启动失败</b>（报「Plugins waiting for services」），
-        页面上标了「官方条件控制」的条目本来由 dsh 自己按条件决定，手动改可能被它覆盖。</p>
-      <div class="row">
-        <div class="f"><label for="plug-filter">过滤（按条目 id 或包名）</label><input id="plug-filter" placeholder="例如 tool / llm"></div>
-        <span class="sub" id="plug-count"></span>
-      </div>
-      <div id="plug-entries" class="sub" style="margin-top:8px">加载中…</div>
+      <div class="cards" id="official-cards" style="margin-top:10px"></div>
+      <div class="row"><button class="btn" id="official-more" hidden>显示更多</button></div>
       <div class="flash" id="plug-toggle-out"></div>
+    </div>
+
+    <div class="card" id="block-third">
+      <h2>第三方插件 <span class="sub" id="third-count"></span></h2>
+      <div class="subtabs" role="tablist">
+        <button role="tab" id="subtab-installed" aria-selected="true">已安装</button>
+        <button role="tab" id="subtab-market" aria-selected="false">插件市场</button>
+      </div>
+
+      <div id="sub-installed">
+        <div class="cards" id="third-cards"></div>
+        <div class="sub" id="third-empty" style="margin-top:6px"></div>
+        <details style="margin-top:12px">
+          <summary class="sub">按包名手动安装（市场里没有的包，或私有包）</summary>
+          <div class="row" style="margin-top:8px">
+            <div class="f"><label for="plug-name">包名或安装源</label><input id="plug-name" class="mono" placeholder="@scope/name、dsh-xxx、github:作者/仓库"></div>
+            <button class="btn primary" id="btn-plug-install">安装</button>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <div class="f"><label for="plug-q">在 npm 里搜一搜（不是插件索引，搜到请自行确认）</label><input id="plug-q" placeholder="例如 dsh memory / 作者名"></div>
+            <button class="btn" id="btn-plug-search">搜索</button>
+          </div>
+          <div id="plug-search" class="sub" style="margin-top:6px">（搜索结果会列在这里，点一行填进上面的包名框）</div>
+        </details>
+        <details style="margin-top:10px">
+          <summary class="sub">版本不匹配时：接受风险并安装（危险，dsh 会警告可能崩溃/丢数据）</summary>
+          <div class="row" style="margin-top:8px">
+            <div class="f"><label for="plug-av-spec">包名@版本（照抄 dsh 日志里给出的那一行）</label><input id="plug-av-spec" class="mono" placeholder="@scope/name@1.2.3"></div>
+            <div class="f"><label for="plug-av-ver">dsh 版本</label><input id="plug-av-ver" class="mono" placeholder="0.2.1-alpha.2"></div>
+            <button class="btn danger" id="btn-plug-allow">接受风险</button>
+          </div>
+          <div class="flash" id="plug-av-out"></div>
+        </details>
+      </div>
+
+      <div id="sub-market" hidden>
+        <div class="row">
+          <div class="f"><label for="mkt-q">搜索</label><input id="mkt-q" placeholder="名称 / 作者 / 简介，例如 memory"></div>
+          <div class="f"><label for="mkt-cat">分类</label><select id="mkt-cat"></select></div>
+          <div class="f"><label for="mkt-sort">排序</label><select id="mkt-sort">
+            <option value="stars">Star 最多</option>
+            <option value="downloads">下载最多</option>
+            <option value="added">最新收录</option>
+            <option value="name">按名称</option>
+          </select></div>
+          <button class="btn primary" id="btn-mkt-search">搜索</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label class="switch"><input type="checkbox" id="mkt-risk"><span class="track"></span><span>只看有风险提示的</span></label>
+          <button class="btn" id="btn-mkt-refresh">重新拉取索引</button>
+        </div>
+        <div class="sub" id="mkt-info" style="margin-top:8px">（还没读索引）</div>
+        <div class="cards" id="mkt-cards" style="margin-top:10px"></div>
+        <div class="row" id="mkt-pager" style="margin-top:10px"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -461,6 +517,9 @@ label.switch input:checked ~ .txt{color:var(--accent)}
       <div class="grid" id="plug-job"></div>
       <pre id="plug-log">（还没有插件操作）</pre>
     </div>
+
+    <div class="overlay" id="plug-detail" hidden><div class="card pv"><div id="pd-body"></div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="btn-pd-close">关闭</button></div></div></div>
   </section>
 </main>
 
@@ -535,7 +594,7 @@ document.querySelectorAll('nav button[role=tab]').forEach((b) => {
     document.querySelectorAll('nav button[role=tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
     document.querySelectorAll('main section').forEach((s) => { s.hidden = (s.id !== 'tab-' + b.dataset.tab); });
     // 插件页的条目清单要跑一遍 dsh --dump-config（慢），所以按需加载
-    if (b.dataset.tab === 'plugins' && !PLUG) loadPlugins();
+    if (b.dataset.tab === 'plugins' && !PLUG) loadPrefs().then(() => { applyPrefs(); return loadPlugins(); }).catch(() => {});
   });
 });
 function goTab(name) {
@@ -1278,67 +1337,258 @@ el('btn-temp').addEventListener('click', async () => {
 });
 
 /* ---------------------------------------------------------------- 插件 */
-let PLUG = null;          // 最近一次 /api/plugins 的结果
-let PLUG_FILTER = '';
+/* ---------------------------------------------------------------- 插件（卡片视图） */
+let PLUG = null;                 // /api/plugins/catalog 的结果
+let PREFS = { plugins: { showOfficial: true, showThird: true, sub: 'installed' } };
+let OFF_Q = '';                  // 官方插件的筛选词
+let OFF_LIMIT = 24;              // 官方卡片一次显示多少张
+let MKT = { page: 1, q: '', cat: '', sort: 'stars', risk: false, data: null };
+
+/** 图标：按名字算一个确定的颜色 + 首字母（不外链图片，离线也能看） */
+function pfIcon(name) {
+  const s = String(name || '?');
+  let h = 7;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  const tail = s.replace(/^@[^/]+\//, '');
+  const letter = ((tail.replace(/^dsh[-_]?/i, '')[0] || s[0] || '?') + '').toUpperCase();
+  return { letter, color: 'hsl(' + (h % 360) + ' 58% 60%)' };
+}
+function pfIconHtml(name) {
+  const i = pfIcon(name);
+  return '<div class="pc-icon" style="background:' + i.color + ';color:#0F172A">' + esc(i.letter) + '</div>';
+}
+function spill(t, kind) { return '<span class="spill' + (kind ? ' ' + kind : '') + '">' + esc(String(t)) + '</span>'; }
+function cut(s, n) { const t = String(s == null ? '' : s); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+function catName(k) { const c = (MKT.data && MKT.data.categories) || {}; return c[k] || k || '未分类'; }
+function kvRow(k, v) { return '<div class="k">' + esc(k) + '</div><div>' + esc(String(v == null || v === '' ? '—' : v)) + '</div>'; }
+function kvRowHtml(k, v) { return '<div class="k">' + esc(k) + '</div><div>' + v + '</div>'; }
+
+async function loadPrefs() {
+  try {
+    const r = await api('/api/prefs', undefined, 'GET');
+    if (r && r.plugins) PREFS.plugins = Object.assign(PREFS.plugins, r.plugins);
+  } catch (e) { /* 用默认值 */ }
+}
+function savePrefs() { api('/api/prefs', { plugins: PREFS.plugins }, 'POST').catch(() => {}); }
 
 async function loadPlugins(force) {
   try {
-    PLUG = await api('/api/plugins' + (force ? '?force=1' : ''), undefined, 'GET');
+    PLUG = await api('/api/plugins/catalog' + (force ? '?force=1' : ''), undefined, 'GET');
     renderPlugins();
-  } catch (e) {
-    flash('plug-out', '读插件清单失败：' + e.message, 'err');
-  }
+  } catch (e) { flash('plug-out', '读插件目录失败：' + e.message, 'err'); }
+}
+
+/** 一个条目一个开关（官方与第三方通用） */
+function entrySwitch(e, running) {
+  const mark = e.shippedDisabled ? '（官方默认停用）' : e.conditional ? '（官方条件控制）' : '';
+  return '<label class="switch" title="' + esc(e.id + mark) + '"><input type="checkbox" role="switch" data-toggle="' + esc(e.id) + '"' +
+    (e.effective ? ' checked' : '') + (running ? ' disabled' : '') + '><span class="track"></span>' +
+    '<span class="sub mono">' + esc(e.id) + (mark ? ' *' : '') + '</span></label>';
+}
+function officialCard(p, running) {
+  const entries = p.entries || [];
+  const off = entries.some((e) => !e.effective);
+  return '<div class="pcard' + (off ? ' off' : '') + '">' + pfIconHtml(p.pkg) + '<div class="pc-main">' +
+    '<div class="pc-title"><b>' + esc(p.pkg) + '</b>' + spill('v' + (p.version || '?')) +
+    spill('随 dsh ' + (PLUG.slotVersion || '?'), 'ok') + (off ? spill('有停用条目', 'warn') : '') + '</div>' +
+    '<div class="pc-sub">' + esc(p.author || 'dsh 官方') + (p.license ? ' · ' + esc(p.license) : '') + ' · 条目 ' + entries.length + ' 个</div>' +
+    '<div class="pc-desc">' + esc(cut(p.description || '（这个自带包没写 description）', 150)) + '</div>' +
+    '<div class="pc-actions">' + entries.map((e) => entrySwitch(e, running)).join('') +
+    '<button class="btn" data-pdetail="' + esc(p.pkg) + '">详细</button>' +
+    '<span class="sub">官方自带，不能删除</span></div></div></div>';
+}
+function thirdCard(p, running) {
+  const v = (p.compat && p.compat.verdict) || {};
+  const kind = v.level === 'ok' ? 'ok' : (v.level === 'need-exempt' || v.level === 'unknown') ? 'warn' : '';
+  const entries = p.entries || [];
+  const off = entries.some((e) => !e.effective);
+  return '<div class="pcard' + (off ? ' off' : '') + '">' + pfIconHtml(p.pkg) + '<div class="pc-main">' +
+    '<div class="pc-title"><b>' + esc(p.pkg) + '</b>' + spill('v' + (p.version || '?')) +
+    (v.text ? spill(v.text, kind) : '') + (off ? spill('有停用条目', 'warn') : '') + '</div>' +
+    '<div class="pc-sub">' + esc(p.author || '未知作者') + (p.license ? ' · ' + esc(p.license) : '') +
+    ' · ' + (entries.length ? '条目 ' + entries.length + ' 个' : '未被 dsh 加载（没有条目）') + '</div>' +
+    '<div class="pc-desc">' + esc(cut(p.description || '（这个包没写 description）', 150)) + '</div>' +
+    '<div class="pc-actions">' + (entries.length ? entries.map((e) => entrySwitch(e, running)).join('') : '') +
+    '<button class="btn" data-pdetail="' + esc(p.pkg) + '">详细</button>' +
+    '<button class="btn danger" data-del="' + esc(p.pkg) + '">删除</button></div></div></div>';
+}
+function marketCard(p) {
+  const risk = (p.redLines || []).length;
+  return '<div class="pcard">' + pfIconHtml(p.name) + '<div class="pc-main">' +
+    '<div class="pc-title"><b>' + esc(p.name) + '</b>' + (p.version ? spill('v' + p.version) : '') + spill('★ ' + p.stars) +
+    (p.downloads ? spill('⤓ ' + p.downloads) : '') + (risk ? spill('⚠ 有风险提示', 'bad') : '') + '</div>' +
+    '<div class="pc-sub">' + esc(p.owner) + ' · ' + esc(catName(p.category)) + (p.added ? ' · 收录 ' + esc(p.added) : '') +
+    (p.npm ? ' · ' + esc(p.npm) : ' · 走 git/链接安装') + '</div>' +
+    '<div class="pc-desc">' + esc(cut(p.zh || p.en, 160)) + '</div>' +
+    '<div class="pc-actions">' + (p.installed ? spill('已安装', 'ok')
+      : '<button class="btn primary" data-minstall="' + esc(p.name) + '">安装</button>') +
+    '<button class="btn" data-mdetail="' + esc(p.name) + '">详细</button></div></div></div>';
+}
+function wireCards() {
+  document.querySelectorAll('#official-cards input[data-toggle], #third-cards input[data-toggle]').forEach((cb) =>
+    cb.addEventListener('change', () => pluginToggle(cb.dataset.toggle, !cb.checked)));
+  document.querySelectorAll('#official-cards button[data-pdetail], #third-cards button[data-pdetail]').forEach((b) =>
+    b.addEventListener('click', () => openPkgDetail(b.dataset.pdetail)));
+  document.querySelectorAll('#third-cards button[data-del]').forEach((b) =>
+    b.addEventListener('click', () => pluginUninstall(b.dataset.del)));
 }
 
 function renderPlugins() {
   const r = PLUG;
   if (!r) return;
   const pn = r.pnpm || {};
-  const inst = (r.installed && r.installed.installed) || [];
+  const running = !!r.dshRunning;
   rows('plug-status', [
-    ['pnpm（装卸插件要用）', pn.ok
+    ['pnpm（装卸第三方插件要用）', pn.ok
       ? '<span class="pill ok">就绪</span> v' + esc(pn.version) + '　<span class="sub mono">' + esc(pn.dir) + '</span>'
       : '<span class="pill warn">未就绪</span> <span class="sub">' + esc(pn.hint || '') + '</span>'],
-    ['profile 目录', '<span class="mono sub">' + esc((r.installed && r.installed.dir) || '') + '</span>'],
-    ['额外安装的包', inst.length + ' 个' + (inst.length ? '（' + esc(inst.map((x) => x.name).join('、')) + '）' : '')],
-    ['dsh 状态', r.dshRunning
-      ? '<span class="pill bad">运行中：请先停止，插件改动会被拒</span>'
+    ['profile 目录（第三方包装这里）', '<span class="mono sub">' + esc(r.profileDir) + '</span>'],
+    ['活动槽（官方插件在这里）', '<span class="mono">' + esc(r.slot) + '</span> <span class="sub">dsh ' + esc(r.slotVersion || '?') + '</span>'],
+    ['dsh 状态', running
+      ? '<span class="pill bad">运行中：插件改动会被拒</span>'
       : '<span class="pill ok">已停止（可以改）</span>'],
-    ['插件条目', (r.entries || []).length + ' 个　<span class="sub">（清单读自 dsh --dump-config，缓存 30 秒）</span>'],
+    ['统计', r.counts.officialCards + ' 张官方卡片（共 ' + r.counts.officialPackages + ' 个自带包）　·　' +
+      r.counts.thirdPartyCards + ' 张第三方卡片　·　' + r.counts.entries + ' 个条目' +
+      (r.counts.orphan ? '（' + r.counts.orphan + ' 个条目没归到卡片）' : '')],
   ]);
   el('plug-pnpm-note').textContent = pn.ok ? '盘上自带（不依赖宿主装没装）' : '点「准备 pnpm」装到本盘上（约几 MB）';
-  el('btn-pnpm-setup').disabled = !!pn.ok || !!r.dshRunning;
+  el('btn-pnpm-setup').disabled = !!pn.ok || running;
 
-  el('plug-installed').innerHTML = inst.length
-    ? '<table class="mtable"><thead><tr><th>包</th><th>版本</th><th>会加载</th><th></th></tr></thead><tbody>' + inst.map((x) =>
-      '<tr><td class="mono">' + esc(x.name) + '</td><td>' + esc(x.version) + '</td><td>' +
-      (x.bundle ? '<span class="pill ok">是</span>' : '<span class="sub">否</span>') +
-      '</td><td><button class="btn danger" data-uninstall="' + esc(x.name) + '">卸载</button></td></tr>').join('')
-      + '</tbody></table>'
-    : '<span class="sub">（没有额外安装的包：dsh 自带的插件随槽位走，不在这里）</span>';
-  el('plug-installed').querySelectorAll('button[data-uninstall]').forEach((b) =>
-    b.addEventListener('click', () => pluginUninstall(b.dataset.uninstall)));
+  // 官方插件
+  const q = OFF_Q.toLowerCase();
+  const off = (r.official || []).filter((p) => !q || p.pkg.toLowerCase().indexOf(q) >= 0 ||
+    (p.entries || []).some((e) => e.id.toLowerCase().indexOf(q) >= 0));
+  el('official-count').textContent = r.counts.officialCards + ' 张卡片';
+  el('official-shown').textContent = '显示 ' + Math.min(OFF_LIMIT, off.length) + ' / ' + off.length + ' 张' +
+    (r.counts.officialPackages > r.counts.officialCards ? '；另有 ' + (r.counts.officialPackages - r.counts.officialCards) + ' 个自带包没在配置里出现' : '');
+  el('official-cards').innerHTML = off.slice(0, OFF_LIMIT).map((p) => officialCard(p, running)).join('') ||
+    '<span class="sub">（没有匹配的插件）</span>';
+  el('official-more').hidden = off.length <= OFF_LIMIT;
+  el('official-more').textContent = '显示更多（还有 ' + Math.max(0, off.length - OFF_LIMIT) + ' 张）';
 
-  const f = PLUG_FILTER.toLowerCase();
-  const all = r.entries || [];
-  const list = all.filter((e) => !f || e.id.toLowerCase().indexOf(f) >= 0 || String(e.name || '').toLowerCase().indexOf(f) >= 0);
-  el('plug-count').textContent = '显示 ' + list.length + ' / ' + all.length + ' 个'
-    + (r.disabled && r.disabled.length ? '；本工具停用 ' + r.disabled.length + ' 个' : '');
-  el('plug-entries').innerHTML = list.length
-    ? '<table class="mtable"><thead><tr><th>条目</th><th>包</th><th>状态</th><th>启用</th></tr></thead><tbody>' + list.map((e) =>
-      '<tr><td class="mono">' + esc(e.id) + '</td><td class="mono sub">' + esc(e.name || '—') + '</td><td>' +
-      (e.effective ? '<span class="pill ok">启用</span>' : '<span class="pill warn">停用</span>') +
-      (e.ours === 'disabled' ? '<span class="tag">本工具停用</span>' : '') +
-      (e.ours === 'enabled' ? '<span class="tag">本工具启用</span>' : '') +
-      (e.shippedDisabled ? '<span class="tag">官方默认停用</span>' : '') +
-      (e.conditional ? '<span class="tag">官方条件控制</span>' : '') +
-      '</td><td><label class="switch"><input type="checkbox" role="switch" data-toggle="' + esc(e.id) + '"' +
-      (e.effective ? ' checked' : '') + (r.dshRunning ? ' disabled' : '') + '><span class="track"></span></label></td></tr>').join('')
-      + '</tbody></table>'
-    : '<span class="sub">（没有匹配的条目）</span>';
-  el('plug-entries').querySelectorAll('input[data-toggle]').forEach((cb) =>
+  // 第三方（已安装）
+  const third = r.thirdParty || [];
+  el('third-count').textContent = '已装 ' + third.length + ' 个';
+  el('third-cards').innerHTML = third.map((p) => thirdCard(p, running)).join('');
+  el('third-empty').textContent = third.length ? ''
+    : '还没装第三方插件：切到「插件市场」挑一个，或用下面的「按包名手动安装」。';
+  wireCards();
+}
+
+/* ---------------------------------------------------------------- 插件市场 */
+async function mktSearch(page) {
+  if (page) MKT.page = page;
+  MKT.q = el('mkt-q').value.trim();
+  MKT.cat = el('mkt-cat').value || '';
+  MKT.sort = el('mkt-sort').value;
+  MKT.risk = el('mkt-risk').checked;
+  el('mkt-info').innerHTML = '<span class="sub">读索引中…（第一次会用一次网络把社区索引拉到盘上，约 4 MB）</span>';
+  el('mkt-cards').innerHTML = '';
+  el('mkt-pager').innerHTML = '';
+  try {
+    const r = await api('/api/market?q=' + encodeURIComponent(MKT.q) + '&cat=' + encodeURIComponent(MKT.cat) +
+      '&sort=' + encodeURIComponent(MKT.sort) + '&page=' + MKT.page + '&pageSize=24' + (MKT.risk ? '&risk=1' : ''), undefined, 'GET');
+    MKT.data = r;
+    if (!r.ok) {
+      el('mkt-info').innerHTML = '<span class="pill warn">读不到索引</span> <span class="sub">' + esc(r.error || '') + '</span>';
+      return;
+    }
+    el('mkt-cat').innerHTML = '<option value="">全部分类（' + esc(r.source.count) + ' 个插件）</option>' +
+      Object.keys(r.categories).map((k) => '<option value="' + esc(k) + '"' + (k === MKT.cat ? ' selected' : '') + '>' +
+        esc(r.categories[k]) + '</option>').join('');
+    el('mkt-info').innerHTML = '命中 <b>' + r.total + '</b> 个　第 ' + r.page + ' / ' + r.pages + ' 页　' +
+      '<span class="sub">索引来自 ' + esc(r.source.data) + '（' + esc(r.source.updated || '?') + ' 更新，共 ' +
+      esc(r.source.count) + ' 个）</span>';
+    el('mkt-cards').innerHTML = r.items.map(marketCard).join('') || '<span class="sub">（没有匹配的插件）</span>';
+    el('mkt-pager').innerHTML = '第 ' + r.page + ' / ' + r.pages + ' 页　' +
+      (r.page > 1 ? '<button class="btn" data-mpage="' + (r.page - 1) + '">上一页</button> ' : '') +
+      (r.page < r.pages ? '<button class="btn" data-mpage="' + (r.page + 1) + '">下一页</button>' : '');
+    document.querySelectorAll('#mkt-pager button[data-mpage]').forEach((b) =>
+      b.addEventListener('click', () => mktSearch(Number(b.dataset.mpage))));
+    document.querySelectorAll('#mkt-cards button[data-minstall]').forEach((b) =>
+      b.addEventListener('click', () => mktInstall(b.dataset.minstall)));
+    document.querySelectorAll('#mkt-cards button[data-mdetail]').forEach((b) =>
+      b.addEventListener('click', () => openMarketDetail(b.dataset.mdetail)));
+  } catch (e) {
+    el('mkt-info').innerHTML = '<span class="pill warn">读不到索引</span> <span class="sub">' + esc(e.message) + '</span>';
+  }
+}
+function mktInstall(name) {
+  if (!window.confirm('安装 ' + name + ' ？会用 profile 目录里的 pnpm 把包装进本盘（dsh 运行时不能装）。')) return;
+  runJob('/api/plugins/install', { market: name }, el('btn-plug-refresh'), '安装中…',
+    { keepTab: true, log: 'plug-log', out: 'plug-out', jobGrid: 'plug-job' });
+}
+
+/* ---------------------------------------------------------------- 详情面板 */
+function pdOpen(html) { el('pd-body').innerHTML = html; el('plug-detail').hidden = false; }
+function pdClose() { el('plug-detail').hidden = true; el('pd-body').innerHTML = ''; }
+function compatTable(res) {
+  if (!res || !res.checks || !res.checks.length) return '<p class="sub">（这个插件没有声明对 dsh 内部包的版本要求）</p>';
+  return '<table class="mtable" style="margin-top:8px"><thead><tr><th>依赖</th><th>要求</th><th>本槽</th><th></th></tr></thead><tbody>' +
+    res.checks.map((c) => '<tr><td class="mono">' + esc(c.dep) + '</td><td class="sub mono">' + esc(cut(c.range, 64)) +
+      '</td><td class="mono">' + esc(c.have || '（没装）') + '</td><td>' +
+      (c.ok === null ? '<span class="pill warn">?</span>' : c.ok ? '<span class="pill ok">满足</span>' : '<span class="pill bad">不满足</span>') +
+      '</td></tr>').join('') + '</tbody></table>';
+}
+async function openPkgDetail(pkg) {
+  const hit = (PLUG.official || []).concat(PLUG.thirdParty || []).find((p) => p.pkg === pkg);
+  if (!hit) { pdOpen('<h2>' + esc(pkg) + '</h2><p class="sub">找不到这个包。</p>'); return; }
+  let html = '<h2>' + esc(pkg) + ' <span class="sub">' + (hit.kind === 'official' ? '官方（dsh 自带）' : '第三方') + '</span></h2>' +
+    '<p class="sub">' + esc(cut(hit.description || '（没有 description）', 420)) + '</p>' +
+    '<div class="kv">' + kvRow('版本', hit.version) + kvRow('作者', hit.author) + kvRow('许可', hit.license) +
+    kvRowHtml('目录', '<span class="mono">' + esc(hit.dir) + '</span>') +
+    (hit.repo ? kvRowHtml('仓库', '<a href="' + esc(hit.repo) + '" target="_blank" rel="noopener">' + esc(hit.repo) + '</a>') : '') +
+    (hit.homepage ? kvRowHtml('主页', '<a href="' + esc(hit.homepage) + '" target="_blank" rel="noopener">' + esc(hit.homepage) + '</a>') : '') + '</div>';
+  if (hit.kind === 'official') {
+    html += '<h2 style="margin-top:14px">适配版本</h2><p class="sub">官方插件随活动槽安装，版本就是 dsh 自己的版本（' +
+      esc(PLUG.slotVersion || '?') + '）——<b>不需要也不允许单独装</b>，只能停用条目。</p>';
+  } else {
+    const res = (hit.compat && hit.compat.result) || null;
+    html += '<h2 style="margin-top:14px">适配本槽</h2><div class="kv">' +
+      kvRowHtml('结论', esc((hit.compat && hit.compat.verdict && hit.compat.verdict.text) || '未知') +
+        (res ? ' <span class="sub">（用 ' + esc(res.how) + ' 判定）</span>' : '')) +
+      kvRowHtml('安装命令', '<span class="mono">' + esc(hit.installCommand || '') + '</span>') + '</div>' + compatTable(res);
+  }
+  const ents = hit.entries || [];
+  html += '<h2 style="margin-top:14px">条目（' + ents.length + ' 个）</h2>' +
+    (ents.length ? '<div class="row">' + ents.map((e) => entrySwitch(e, PLUG.dshRunning)).join('') + '</div>'
+      : '<p class="sub">（没有对应条目：dsh 没有加载这个包）</p>');
+  pdOpen(html);
+  document.querySelectorAll('#pd-body input[data-toggle]').forEach((cb) =>
     cb.addEventListener('change', () => pluginToggle(cb.dataset.toggle, !cb.checked)));
-  el('plug-log').textContent = el('plug-log').textContent || '（还没有插件操作）';
+}
+async function openMarketDetail(name) {
+  pdOpen('<h2>' + esc(name) + '</h2><p class="sub">读详细信息…</p>');
+  try {
+    const r = await api('/api/market/item?name=' + encodeURIComponent(name) + '&compat=1', undefined, 'GET');
+    if (!r.ok) { pdOpen('<h2>' + esc(name) + '</h2><p class="sub">' + esc(r.error || '读不到') + '</p>'); return; }
+    const p = r.item;
+    let html = '<h2>' + esc(p.name) + ' ' + (p.version ? spill('v' + p.version) : '') + spill('★ ' + p.stars) + '</h2>' +
+      '<p class="sub">' + esc(p.zh || '（源里没有中文简介）') + '</p>' +
+      (p.en ? '<details><summary class="sub">英文原文</summary><p class="sub">' + esc(p.en) + '</p></details>' : '') +
+      '<div class="kv">' + kvRow('作者', p.owner) + kvRow('分类', catName(p.category)) +
+      kvRow('npm', p.npm || '（没有 npm 包，走 git / 链接安装）') +
+      kvRow('下载量', p.downloads == null ? '—' : String(p.downloads)) + kvRow('收录', p.added) +
+      kvRowHtml('能力', (p.capabilities || []).map((c) => spill(c)).join(' ') || '—') +
+      (p.redLines && p.redLines.length ? kvRowHtml('⚠ 风险', p.redLines.map((x) => '<span class="spill bad">' + esc(x) + '</span>').join(' ')) : '') +
+      kvRowHtml('页面', '<a href="' + esc(p.page || p.url) + '" target="_blank" rel="noopener">' + esc(p.page || p.url) + '</a>') +
+      '</div><h2 style="margin-top:14px">安装</h2><div class="kv">' +
+      kvRowHtml('命令', '<span class="mono">' + esc(p.install || '') + '</span>') + '</div>';
+    if (r.compat) {
+      html += '<h2 style="margin-top:14px">适配本槽</h2><div class="kv">' +
+        kvRowHtml('结论', esc(r.compat.verdict.text) + ' <span class="sub">（用 ' + esc(r.compat.result.how) + ' 判定）</span>') +
+        '</div>' + compatTable(r.compat.result);
+    } else {
+      html += '<h2 style="margin-top:14px">适配本槽</h2><p class="sub">' + esc(r.compatNote || '需要联网查 npm 元信息') + '</p>';
+    }
+    html += '<div class="row" style="margin-top:12px">' + (r.installed ? spill('已安装', 'ok')
+      : '<button class="btn primary" data-minstall2="' + esc(p.name) + '">安装</button>') + '</div>';
+    pdOpen(html);
+    const b2 = document.querySelector('#pd-body button[data-minstall2]');
+    if (b2) b2.addEventListener('click', () => mktInstall(b2.dataset.minstall2));
+  } catch (e) {
+    pdOpen('<h2>' + esc(name) + '</h2><p class="sub">读详细信息失败：' + esc(e.message) + '</p>');
+  }
 }
 
 async function pluginToggle(id, disabled) {
@@ -1383,6 +1633,20 @@ async function pluginSearch() {
     el('plug-search').innerHTML = '<span class="sub">搜索失败：' + esc(e.message) + '</span>';
   }
 }
+/** 把显示开关落到界面上（官方/第三方两块 + 第三方里的两个子页签） */
+function applyPrefs() {
+  el('show-official').checked = !!PREFS.plugins.showOfficial;
+  el('show-third').checked = !!PREFS.plugins.showThird;
+  el('block-official').hidden = !PREFS.plugins.showOfficial;
+  el('block-third').hidden = !PREFS.plugins.showThird;
+  const sub = PREFS.plugins.sub === 'market' ? 'market' : 'installed';
+  el('subtab-installed').setAttribute('aria-selected', String(sub === 'installed'));
+  el('subtab-market').setAttribute('aria-selected', String(sub === 'market'));
+  el('sub-installed').hidden = sub !== 'installed';
+  el('sub-market').hidden = sub !== 'market';
+  if (sub === 'market' && !MKT.data) mktSearch(1);
+}
+
 el('btn-plug-refresh').addEventListener('click', (e) => withBusy(e.currentTarget, '读取中…', () => loadPlugins(true)));
 el('btn-pnpm-setup').addEventListener('click', () => runJob('/api/plugins/pnpm-setup', {}, el('btn-pnpm-setup'), '准备中…',
   { keepTab: true, log: 'plug-log', out: 'plug-out', jobGrid: 'plug-job' }));
@@ -1390,7 +1654,33 @@ el('btn-plug-install').addEventListener('click', pluginInstall);
 el('btn-plug-search').addEventListener('click', pluginSearch);
 el('plug-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') pluginSearch(); });
 el('plug-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') pluginInstall(); });
-el('plug-filter').addEventListener('input', () => { PLUG_FILTER = el('plug-filter').value; renderPlugins(); });
+
+// 显示开关（状态存盘：data/ui-prefs.json，跟盘走）
+el('show-official').addEventListener('change', () => { PREFS.plugins.showOfficial = el('show-official').checked; applyPrefs(); savePrefs(); });
+el('show-third').addEventListener('change', () => { PREFS.plugins.showThird = el('show-third').checked; applyPrefs(); savePrefs(); });
+el('subtab-installed').addEventListener('click', () => { PREFS.plugins.sub = 'installed'; applyPrefs(); savePrefs(); });
+el('subtab-market').addEventListener('click', () => { PREFS.plugins.sub = 'market'; applyPrefs(); savePrefs(); });
+
+// 官方插件：筛选 / 显示更多
+el('official-filter').addEventListener('input', () => { OFF_Q = el('official-filter').value; OFF_LIMIT = 24; renderPlugins(); });
+el('official-more').addEventListener('click', () => { OFF_LIMIT += 48; renderPlugins(); });
+
+// 市场
+el('btn-mkt-search').addEventListener('click', () => mktSearch(1));
+el('mkt-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') mktSearch(1); });
+el('mkt-sort').addEventListener('change', () => mktSearch(1));
+el('mkt-cat').addEventListener('change', () => mktSearch(1));
+el('mkt-risk').addEventListener('change', () => mktSearch(1));
+el('btn-mkt-refresh').addEventListener('click', (e) => withBusy(e.currentTarget, '拉取中…', async () => {
+  await api('/api/market/refresh', {}, 'POST');
+  MKT.data = null;
+  await mktSearch(1);
+  flash('plug-out', '索引已重新拉取。', 'ok');
+}));
+
+// 详情面板
+el('btn-pd-close').addEventListener('click', pdClose);
+el('plug-detail').addEventListener('click', (e) => { if (e.target === el('plug-detail')) pdClose(); });
 el('btn-plug-allow').addEventListener('click', (e) => {
   const spec = el('plug-av-spec').value.trim(), ver = el('plug-av-ver').value.trim();
   clearFlash('plug-av-out');

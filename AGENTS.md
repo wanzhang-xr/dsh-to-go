@@ -33,9 +33,9 @@
 
 ```
 build.cmd / build.ps1     一次性构建：下载并校验便携 Node，然后打开图形向导（-Cli 走命令行双槽安装）
-dsh.cmd                   启动 dsh 自己的 Web UI
-dsh-ui.cmd                图形向导与主页面（本地服务，127.0.0.1）—— 根目录另一个是 build.cmd
-tools\rescue\          应急脚本目录（平时用不到；改这几个脚本要注意它们靠 %~dp0..\.. 找仓库根目录）
+dsh-ui.cmd                图形向导与主页面（本地服务，127.0.0.1）—— 根目录只有它和 build.cmd
+tools\rescue\          应急脚本目录（图形页/服务出问题时才用；改这几个脚本要注意它们靠 %~dp0..\.. 找仓库根目录）
+  tools\rescue\dsh.cmd                 起 dsh 自己的 Web UI（绕过我们的服务，对照用）
   tools\rescue\dsh-config.cmd          终端维护台（自检/升级/切槽/备份/密钥/站点）
   tools\rescue\dsh-cli.cmd             命令行用法（--version、headless "任务"）
   tools\rescue\dsh-doctor.cmd          一键自检
@@ -45,7 +45,11 @@ tools/
   secret.js               密钥层（v2 多站点密钥库 + verifier + 旧格式迁移）
   jobs.js                 后台任务引擎（锁、增量日志、状态机、取消/中断识别）
   install.js              双槽安装器（npm 装、双源回退）
-  ui-server.js            本地页面服务（登录会话、dsh 启停、任务、站点、版本列表、模型缓存、自检）
+  ui-server.js            本地页面服务（登录会话、dsh 启停、任务、站点、版本列表、模型缓存、插件目录/市场、自检）
+  plugins.js              插件层（条目解析与启停、pnpm 环境、已装包、catalog 卡片目录）
+  market.js               插件市场数据层（抓取/瘦身/缓存/搜索排序分页）
+  compat.js               插件与本槽 dsh 的兼容性判定（peerDependencies 比对本槽实际版本）
+  watchdog.js             拔盘守护（哨兵 + 丢盘判定 + 宿主记录）
   config.js / site.js     维护台与旧单站点工具（site.js 仅保留 dump/migrate 等）
 ui/app.html               单文件页面（零外链）
 tests/                    node --test 单测
@@ -108,9 +112,11 @@ runtime\node\node.exe --test tests\sites.test.js tests\secret.test.js tests\laun
 
 ## 8. 插件（启停 / 安装 / 卸载）
 
-插件挂在**本盘的 profile**（`data\profiles\web`）上，不是按 A/B 槽分——两个槽共用同一个 profile。图形页「插件」分区做三件事：
+图形页「插件」分区是**卡片视图**：一个插件一张卡片（图标 / 名称 / 作者 / 适配版本 / 简介 / 启用停用 / 详细 / 删除），
+分「官方插件」（活动槽里的 `@deepseek-ai/*`，不能删，只能停用条目）与「第三方插件」（profile 里的包，可停用可删除）两块，
+各有一个显示开关（状态存 `data\ui-prefs.json`，跟盘走）。另有「插件市场」子页签，接社区索引（见本节末尾的事实）。
 
-- **条目启停**：列出 dsh 配置树里的插件条目（含官方默认停用的、官方按条件控制的），勾掉即停用。状态写在我们的覆盖层里（`data\site-patch.yml`，随 `--patch` 传给 dsh），**重启 dsh 生效**。
+- **条目启停**：卡片上的开关对应 dsh 配置树里的条目（含官方默认停用的、官方按条件控制的），勾掉即停用。状态写在我们的覆盖层里（`data\site-patch.yml`，随 `--patch` 传给 dsh），**重启 dsh 生效**。
   - ⚠️ 停用错了条目 dsh 会**启动失败**并列出「等待某个服务的插件」（例如停用 `webserver` 会让 web-runtime 等 4 个插件起不来）。页面会提示这一点。
   - ⚠️ `dsh --dump-config` **不体现**覆盖层里的 `disabled` —— 想确认停用是否生效，要看 dsh 的启动输出，别拿 dump 当证据。
 - **安装 / 卸载**：按 npm 包名装卸，实际执行 `dsh plugin --profile web add|remove <包名>`（它把参数转给 profile 目录里的 pnpm）。
@@ -128,6 +134,21 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
 ```
 
 
+
+- **插件市场的数据源**：`https://awesome-dsh-plugin.com/plugins.json`（社区索引，2026-10 时 4489 个、4.69 MB）。
+  它给的是**社区插件**：不含 dsh 自带的官方插件，也**没有「适配 dsh 版本」字段**——那一项是我们自己算的（见下）。
+  每个条目带现成的 `install` 命令，**照抄它**（有 `github:作者/仓库`、`tgz` 链接的，自己拼不出来）；名字里有 `#` 的是 monorepo 子目录
+  （如 `archify#integrations/deepseek-harness`），别当成包名。抓取要用浏览器 UA（无 UA 会被挡），缓存落盘 `data\market.json`（精简后约 3.9 MB，24 小时 TTL）。
+- **官方插件 = 活动槽里的 `@deepseek-ai/*`**（299 个包，其中 175 个在配置里有条目）。profile 的 `node_modules` 里只有第三方包；
+  profile 的 `package.json` 的 `dsh.profile.bundles` 只有两个基础包，**别拿它当官方插件清单**。
+- **「适配版本」怎么算的**：拿插件的 `peerDependencies`（`@deepseek-ai/*` 那些）比对本槽 `node_modules` 里的实际版本，
+  用**槽里自带的 semver**（与 dsh 的兼容闸门同一套判定），`{includePrerelease: true}`（生态里区间本身就带 alpha/rc）。
+  拿不到 semver 时退回 `tools\compat.js` 的近似匹配，并在结果里标 `how: "approx"`，不假装精确。
+  近似匹配有一条容易写错：区间里带预发布时，上界要收成 `<upper>-0`（`^0.1.2-alpha.1` 不接受 `0.2.0-rc.1`）。
+- 界面偏好（插件页的显示开关）存 `data\ui-prefs.json`，跟盘走；`GET/POST /api/prefs`，POST 不需要解锁（只存显示开关，不碰密钥）。
+- 接口：`/api/plugins/catalog`（175 张官方卡片 + 第三方卡片，30 秒缓存）、`/api/market`（服务端搜索/排序/分页）、
+  `/api/market/item?compat=1`（联网查 npm 元信息 + 算适配）、`/api/market/refresh`（要解锁）、`/api/prefs`。
+  「安装」从市场点：页面只送插件名，**安装目标由服务端从索引的 `install` 字段解析**（`market.installSpecOf`），再用 `validInstallSpec` 校验。
 
 ## 9. 拔盘守护（动这几类文件前必读）
 

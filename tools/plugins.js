@@ -215,6 +215,20 @@ function validPackageName(name) {
   return true;
 }
 
+/**
+ * 安装目标合法性：比包名宽一点，因为市场里有的插件走 git 仓库或 tgz 链接。
+ * 参数以数组形式传给 pnpm（不经过 shell），这里主要是挡住明显写错的、带空格的、带壳字符的东西。
+ */
+function validInstallSpec(spec) {
+  const s = String(spec || '').trim();
+  if (!s || s.length > 300 || /\s/.test(s)) return false;
+  if (validPackageName(s)) return true;
+  if (/^github:[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+(#[\w./-]+)?$/.test(s)) return true;
+  if (/^https?:\/\/[\w.-]+\/[\w./%$-]*\.(tgz|tar\.gz)$/i.test(s)) return true;
+  if (s.indexOf('file:') === 0 && s.length > 6) return true;
+  return false;
+}
+
 let SEARCH_CACHE = { at: 0, q: '', data: null };
 /**
  * 按关键词搜 npm（**不是**插件官方索引：dsh 没有这种 API）。
@@ -267,12 +281,147 @@ function listInstalled(profile) {
   return { ok: !!j, dir, installed, bundles, exists: !!j };
 }
 
+// ---------------------------------------------------------------- 卡片页要用的目录
+
+const compat = require('./compat.js');
+
+/** 活动槽目录：官方插件（@deepseek-ai/*）随 dsh 装在这里 */
+function slotDir() { return path.join(RUNTIME, readSlot()); }
+
+function readPkgJson(dir) {
+  try { return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')); } catch (e) { return null; }
+}
+
+function authorOf(j) {
+  const a = j && j.author;
+  if (typeof a === 'string') return a.replace(/<[^>]*>/g, '').trim() || null;
+  if (a && a.name) return a.name;
+  if (Array.isArray(j && j.maintainers) && j.maintainers[0]) {
+    const m = j.maintainers[0];
+    return (m && m.name) || (typeof m === 'string' ? m.replace(/<[^>]*>/g, '').trim() : null);
+  }
+  return null;
+}
+
+function pkgInfo(pkg, dir, kind) {
+  const j = readPkgJson(dir) || {};
+  const repo = typeof j.repository === 'string' ? j.repository : ((j.repository && j.repository.url) || null);
+  return {
+    pkg, kind, dir,
+    version: j.version || null,
+    author: authorOf(j),
+    description: String(j.description || '').trim(),
+    homepage: j.homepage || null,
+    repo: repo ? String(repo).replace(/^git\+/, '').replace(/\.git$/, '') : null,
+    license: j.license || null,
+    peers: j.peerDependencies || {},
+  };
+}
+
+/** 活动槽里 dsh 自带的包（官方插件） */
+function officialPackages() {
+  const base = path.join(slotDir(), 'node_modules', '@deepseek-ai');
+  const out = [];
+  try {
+    for (const name of fs.readdirSync(base)) {
+      const info = pkgInfo('@deepseek-ai/' + name, path.join(base, name), 'official');
+      if (info.version) out.push(info);
+    }
+  } catch (e) { /* 槽里没有 */ }
+  return out;
+}
+
+/** 本槽里 dsh 本体的版本（官方插件与它同版本） */
+function slotDshVersion() {
+  const j = readPkgJson(path.join(slotDir(), 'node_modules', '@deepseek-ai', 'dsh'));
+  return (j && j.version) || null;
+}
+
+/** 第三方包：profile 的 node_modules（pnpm 装进来的） */
+function installedPackages(profile) {
+  const base = path.join(profileDir(profile), 'node_modules');
+  const out = [];
+  const add = (full, dir) => { const info = pkgInfo(full, dir, 'third-party'); if (info.pkg) out.push(info); };
+  try {
+    for (const e of fs.readdirSync(base, { withFileTypes: true })) {
+      if (!e.isDirectory() || e.name.startsWith('.')) continue;
+      const p = path.join(base, e.name);
+      if (e.name.startsWith('@')) {
+        try { for (const sub of fs.readdirSync(p)) add(e.name + '/' + sub, path.join(p, sub)); } catch (err) { /* 忽略 */ }
+      } else add(e.name, p);
+    }
+  } catch (e) { /* 还没装过第三方包 */ }
+  return out;
+}
+
+/** 条目按包名归并（子条目 '@deepseek-ai/dsh-plugin-manager/tools' 归到包上） */
+function groupEntries(entries) {
+  const map = {};
+  for (const e of entries || []) {
+    const full = String(e.name || '');
+    if (!full) continue;
+    let base = full;
+    const first = full.indexOf('/');
+    if (full.startsWith('@')) { const second = full.indexOf('/', first + 1); if (second > 0) base = full.slice(0, second); }
+    else if (first > 0) base = full.slice(0, first);
+    (map[base] = map[base] || []).push(e);
+  }
+  return map;
+}
+
+/**
+ * 卡片页要用的完整目录：官方插件 / 第三方插件，各自带包元信息、条目、兼容性结论。
+ * 会跑一次 dump（几秒），ui-server 端有缓存。
+ */
+function catalog(opts = {}) {
+  const profile = opts.profile || 'web';
+  const entriesRes = listEntries(opts);
+  const entries = entriesRes.entries || [];
+  const byPkg = groupEntries(entries);
+  const slot = readSlot();
+  const slotVersion = slotDshVersion();
+  const pdir = profileDir(profile);
+  const compatOpts = { slotDir: slotDir(), profileDir: pdir, semverDir: slotDir() };
+
+  const official = officialPackages()
+    .map((p) => Object.assign({}, p, { entries: byPkg[p.pkg] || [] }))
+    .filter((p) => p.entries.length);   // 没在配置里出现的官方包不占卡片位（数量在 counts 里另给）
+
+  const thirdParty = installedPackages(profile).map((p) => {
+    const res = compat.check(p.peers, compatOpts);
+    return Object.assign({}, p, {
+      entries: byPkg[p.pkg] || [],
+      compat: { result: res, verdict: compat.verdict(res, slotVersion) },
+      installCommand: 'dsh plugin --profile ' + profile + ' add ' + p.pkg,
+    });
+  });
+
+  const shown = new Set();
+  official.concat(thirdParty).forEach((p) => p.entries.forEach((e) => shown.add(e.id)));
+  const orphanEntries = entries.filter((e) => !shown.has(e.id));
+
+  let officialPackagesAll = official.length;
+  try { officialPackagesAll = fs.readdirSync(path.join(slotDir(), 'node_modules', '@deepseek-ai')).length; } catch (e) { /* 用上面的数 */ }
+
+  return {
+    ok: entriesRes.ok, error: entriesRes.error,
+    profile, profileDir: pdir, slot, slotVersion,
+    official, thirdParty, orphanEntries,
+    counts: {
+      officialCards: official.length, officialPackages: officialPackagesAll,
+      thirdPartyCards: thirdParty.length, entries: entries.length, orphan: orphanEntries.length,
+    },
+  };
+}
+
 module.exports = {
   ROOT, RUNTIME, PNPM_DIR, PNPM_STORE, RESERVED,
   setRoots, pluginsFile, profileDir, readState, writeState, ourChoice,
   parseEntries, dumpEntries, listEntries,
   pnpmBinDir, pnpmCjs, pnpmInfo, pnpmEnv, installPnpm,
-  validPackageName, searchNpm, listInstalled,
+  validPackageName, validInstallSpec, searchNpm, listInstalled,
+  slotDir, slotDshVersion, readPkgJson, authorOf, pkgInfo,
+  officialPackages, installedPackages, groupEntries, catalog,
 };
 
 if (require.main === module) {

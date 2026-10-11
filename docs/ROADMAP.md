@@ -272,6 +272,29 @@ dsh 当场报 `ValidationError: $.providers.<站点>.models[0].contextWindow exp
 验收：单测 `tests\watchdog.test.js` 15 项（含「定时器自己发现丢盘」）；全量单测 79/79；
 端到端 `drive-pull-e2e`：真起 dsh → 删哨兵 → 断言 dsh 端口关闭、进程树死、ui-server 退出码 4、宿主记录写入、重开后能看到并可清除。
 
+## 4.11 插件页改版：卡片视图 + 插件市场 + 适配版本判定（棒 8）
+
+需求（用户给的）：插件用卡片展示（图标 / 名称 / 作者 / 适配版本 / 简介 / 启用停用 / 详细 / 删除）；分成官方插件与第三方插件，
+各用一个开关控制是否显示；插件市场用社区索引 `awesome-dsh-plugin.com`。
+
+**勘察结论（决定了设计）**：
+
+| 问题 | 实测答案 |
+|---|---|
+| 市场里有官方插件吗 | 没有（0 个 `@deepseek-ai/*`）。官方插件只能来自**活动槽**：`runtime\<槽>\node_modules\@deepseek-ai\`（299 个包，175 个在配置里有条目） |
+| 市场里有「适配 dsh 版本」字段吗 | 没有。字段只有 name/owner/url/category/description/npm/version/stars/downloads/capabilities/install/added/screenshots/tarball |
+| 那「适配版本」从哪来 | 插件的 `peerDependencies` 声明了对 dsh 内部包的要求，**这就是 dsh 兼容闸门的判定依据** → 用槽里自带的 semver 比对本槽实际版本（实测 `dsh-answer-reviewer` → 「适配本槽」） |
+| 图标哪来 | 索引里只有截图没有图标；页面也不该外链图片（离线可用是硬约束）→ 按包名算一个确定颜色的字母图标，纯内联 |
+| 4489 个怎么显示 | 服务端搜索/分类/排序/分页（页面只拿当前页 24 个），索引缓存到盘上（约 3.9 MB，24 小时） |
+| 安装怎么装 | **照抄索引里的 `install` 命令**（有 `github:作者/仓库`、`tgz` 链接的），服务端从命令里解析目标 + `validInstallSpec` 校验 |
+
+交付：`tools\market.js`（抓取/瘦身/缓存/查询）、`tools\compat.js`（peerDependencies 比对本槽，semver 优先、近似兜底）、
+`plugins.js` 增 `catalog()`（官方/第三方分组 + 元信息 + 条目归并 + 兼容结论）、页面插件页整块重写成卡片 + 市场 + 详情面板、
+`data\ui-prefs.json` 存显示开关（跟盘走）。
+
+验收：单测 **101/101**（新增 market 13 项、compat 12 项）；页面静态核查 5/5；页面运行期核查**全部通过**（175 张官方卡片、
+市场 4489 个 / 188 页、详情面板联网算出「适配本槽」）；接口实测（目录/市场/详情+兼容/偏好存盘/404/401 门禁）。
+
 ## 5. 视觉基线（ui-ux-pro-max 输出，实际采用部分）
 
 - 风格：Dark Mode (OLED)，深色优先；浅色不做默认。

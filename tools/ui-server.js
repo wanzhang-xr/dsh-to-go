@@ -31,11 +31,36 @@ const watchdog = require('./watchdog.js');
 // 丢盘记录只能写宿主临时目录——盘没了，写不回盘上
 const HOST_TMP = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Temp') : os.tmpdir();
 
+// ---------------------------------------------------------------- 界面偏好 / npm 元信息
+function readPrefs() {
+  try { const j = JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8')); return (j && typeof j === 'object') ? j : {}; }
+  catch (e) { return {}; }
+}
+const NPM_META = new Map();   // 包名 -> {at, data}：查过的 npm 元信息缓存在内存里（6 小时）
+async function npmLatest(name) {
+  const key = String(name || '');
+  if (!key) return null;
+  const hit = NPM_META.get(key);
+  if (hit && (Date.now() - hit.at) < 6 * 3600 * 1000) return hit.data;
+  for (const base of ['https://registry.npmjs.org/', 'https://registry.npmmirror.com/']) {
+    try {
+      const r = await fetch(base + key.replace('/', '%2F') + '/latest', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
+      if (!r.ok) continue;
+      const j = await r.json();
+      NPM_META.set(key, { at: Date.now(), data: j });
+      return j;
+    } catch (e) { /* 换镜像再试 */ }
+  }
+  return null;
+}
+/** 从市场的安装命令里取出安装目标：见 market.js 的 installSpecOf（那边有单元测试） */
+
 const ROOT = path.resolve(__dirname, '..');
 const RUNTIME = path.join(ROOT, 'runtime');
 // 和 sites.js 保持一致：数据目录可以被 WZD_DATA_DIR 重定向（测试/多实例用），
 // 否则测试会往仓库真实的 data\ 里写文件（探测缓存、插件清单、启动器日志都读它）。
 const DATA = process.env.WZD_DATA_DIR || path.join(ROOT, 'data');
+const PREFS_FILE = path.join(DATA, 'ui-prefs.json');
 const NODE_EXE = path.join(RUNTIME, 'node', 'node.exe');
 const PAGE = path.join(ROOT, 'ui', 'app.html');
 const PORT_FILE = path.join(RUNTIME, 'port.txt');
@@ -412,6 +437,7 @@ async function handleApi(req, res, url) {
   // 端口/临时目录这类不碰密钥的设置不在此列。
   const NEEDS_LOGIN = ['/api/key', '/api/key/clear', '/api/keys/migrate', '/api/site', '/api/site/clear',
     '/api/upgrade', '/api/jobs/install', '/api/jobs/upgrade', '/api/jobs/pnpm', '/api/jobs/cancel', '/api/drive-lost/clear',
+    '/api/market/refresh',
     '/api/plugins/toggle', '/api/plugins/install', '/api/plugins/uninstall', '/api/plugins/allow-version',
     '/api/plugins/pnpm-setup',
     '/api/dsh/start', '/api/dsh/stop', '/api/backup'];
@@ -718,14 +744,111 @@ async function handleApi(req, res, url) {
     if ((p === '/api/plugins/install' || p === '/api/plugins/uninstall') && req.method === 'POST') {
       if (dshStatus().running) return send(409, { error: 'dsh 正在运行：请先停止 dsh 再装卸插件（会直接改 profile 目录）' });
       const P = require('./plugins.js');
-      const name = String(body.name || '').trim();
-      if (!P.validPackageName(name)) return send(400, { error: '包名不合法：npm 包名形如 name 或 @scope/name' });
+      let name = String(body.name || '').trim();
+      // 从市场点「安装」：安装目标以市场数据里的命令为准（github: / tgz 链接那种，自己拼不出来）
+      if (!name && body.market) {
+        const marketLib = require('./market.js');
+        const hit = marketLib.find(String(body.market));
+        if (!hit) return send(404, { error: '市场索引里没有这个插件（或者索引还没拉取过）' });
+        name = marketLib.installSpecOf(hit.install);
+        if (!name) return send(400, { error: '这个插件的安装命令解析不出来，请手动执行：' + hit.install });
+      }
+      if (!P.validInstallSpec(name)) return send(400, { error: '安装目标不合法：支持 npm 包名、github:作者/仓库、https 的 tgz 链接' });
       const profile = String(body.profile || 'web');
       const verb = p === '/api/plugins/install' ? 'add' : 'remove';
       const r = jobsLib.spawnJob('plugin-pnpm', { args: [verb, name], profile });
       if (!r.ok) return send(409, { error: r.error });
       PLUGIN_CACHE = { at: 0, data: null };
       return send(200, { ok: true, job: r.job, command: 'dsh plugin --profile ' + profile + ' ' + verb + ' ' + name });
+    }
+
+    // ---------------------------------------------------------------- 插件卡片目录
+    // 官方（活动槽里的 @deepseek-ai/*）与第三方（profile 的 node_modules）各带元信息、条目、兼容性结论。
+    // 也要跑一遍 dump，所以和 /api/plugins 共用同一个 30 秒缓存。
+    if (p === '/api/plugins/catalog' && req.method === 'GET') {
+      const P = require('./plugins.js');
+      const profile = url.searchParams.get('profile') || 'web';
+      const now = Date.now();
+      if (url.searchParams.get('force') === '1' || !PLUGIN_CACHE.data || (now - PLUGIN_CACHE.at) > 30000) {
+        PLUGIN_CACHE = { at: now, data: P.catalog({ profile }) };
+      }
+      const c = PLUGIN_CACHE.data;
+      return send(200, {
+        ok: c.ok, error: c.error || null,
+        profile: c.profile, profileDir: c.profileDir, slot: c.slot, slotVersion: c.slotVersion,
+        official: c.official, thirdParty: c.thirdParty, counts: c.counts, orphan: c.orphanEntries.length,
+        pnpm: P.pnpmInfo(),
+        disabled: P.readState().disabled || [],
+        dshRunning: dshStatus().running,
+        cachedAt: new Date(PLUGIN_CACHE.at).toISOString(),
+      });
+    }
+
+    // ---------------------------------------------------------------- 插件市场
+    // 数据源：awesome-dsh-plugin.com（社区索引，4489 个）。第一次用会拉一次并缓存到盘上（约 4 MB）。
+    if (p === '/api/market' && req.method === 'GET') {
+      const marketLib = require('./market.js');
+      const P = require('./plugins.js');
+      const profile = url.searchParams.get('profile') || 'web';
+      const installed = new Set();
+      try { for (const x of P.installedPackages(profile)) installed.add(x.pkg); } catch (e) { /* 没有第三方包 */ }
+      const opts = {
+        q: url.searchParams.get('q') || '', category: url.searchParams.get('cat') || '',
+        sort: url.searchParams.get('sort') || 'stars', page: Number(url.searchParams.get('page') || 1),
+        pageSize: Number(url.searchParams.get('pageSize') || 24),
+        riskOnly: url.searchParams.get('risk') === '1', installedSet: installed,
+      };
+      let r = marketLib.query(opts);
+      if (!r.ok) {
+        try { await marketLib.load({}); r = marketLib.query(opts); }
+        catch (e) { return send(200, { ok: false, error: '拿不到市场索引：' + ((e && e.message) || e), items: [], total: 0 }); }
+      }
+      return send(200, r);
+    }
+
+    if (p === '/api/market/item' && req.method === 'GET') {
+      const marketLib = require('./market.js');
+      const P = require('./plugins.js');
+      const item = marketLib.find(url.searchParams.get('name') || '');
+      if (!item) return send(404, { ok: false, error: '市场索引里没有这个插件（或索引还没拉取过）' });
+      const profile = 'web';
+      let installed = false;
+      try { installed = P.installedPackages(profile).some((x) => x.pkg === item.name || (item.npm && x.pkg === item.npm)); } catch (e) { /* 忽略 */ }
+      const out = { ok: true, item, installed, compat: null, compatNote: null };
+      if (!item.npm) {
+        out.compatNote = '这个插件没有 npm 包（走 git / 链接安装），没法预先查它的版本要求——装的时候由 dsh 自己校验。';
+      } else if (url.searchParams.get('compat') === '1') {
+        const meta = await npmLatest(item.npm);
+        if (!meta) out.compatNote = '查不到 npm 元信息（离线，或这个包不在 npm 上）';
+        else {
+          const compatLib = require('./compat.js');
+          const res = compatLib.check(meta.peerDependencies || {}, { slotDir: P.slotDir(), profileDir: P.profileDir(profile), semverDir: P.slotDir() });
+          out.compat = {
+            result: res, verdict: compatLib.verdict(res, P.slotDshVersion()),
+            npm: { version: meta.version || null, author: meta.author ? (meta.author.name || String(meta.author)) : null, description: meta.description || null },
+          };
+        }
+      }
+      return send(200, out);
+    }
+
+    if (p === '/api/market/refresh' && req.method === 'POST') {
+      const marketLib = require('./market.js');
+      try {
+        const r = await marketLib.load({ force: true });
+        return send(200, { ok: true, count: r.count, updated: r.updated, source: r.source, refreshedAt: r.fetchedAt });
+      } catch (e) { return send(502, { ok: false, error: (e && e.message) || String(e) }); }
+    }
+
+    // ---------------------------------------------------------------- 界面偏好（存盘，跟盘走）
+    if (p === '/api/prefs' && req.method === 'GET') return send(200, readPrefs());
+    if (p === '/api/prefs' && req.method === 'POST') {
+      const next = Object.assign({}, readPrefs(), (body && typeof body === 'object') ? body : {});
+      try {
+        fs.mkdirSync(DATA, { recursive: true });
+        fs.writeFileSync(PREFS_FILE, JSON.stringify(next, null, 2) + '\n', 'utf8');
+      } catch (e) { return send(500, { error: '偏好写不进去：' + ((e && e.message) || e) }); }
+      return send(200, Object.assign({ ok: true }, readPrefs()));
     }
 
     if (p === '/api/plugins/allow-version' && req.method === 'POST') {

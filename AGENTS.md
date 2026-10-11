@@ -173,5 +173,6 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
 | 真机端到端 | 动了守护、槽位、安装、插件、密钥 | 对应的 e2e，且必须**真起进程**；不能用「构建成功」代替 |
 
 - **例外只有一种**：纯错别字、链接修正可以直接改 `main`。除此之外一律走 PR——包括我自己改。
+- **`main` 已开分支保护**：非管理员必须走 PR 才能合入；仓库所有者保留绕过能力，就是给上面那条「错别字例外」用的。强制推送、删除 `main` 都是关的，并要求线性历史（只收 squash / rebase）。
 - 行为变更（改了流程/API/页面/退出码）同步更新 `docs/ROADMAP.md` 的记录表。
 - 运行产物（`runtime/`、`data/`、`secrets/`、`backups/`、`*.enc`）已在 `.gitignore` 里，**不要**为了「方便复现」提交它们。

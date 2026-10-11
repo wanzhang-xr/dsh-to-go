@@ -164,6 +164,16 @@ dsh 自己的凭据分层是「启动环境 > `.credentials.yaml` > 项目 `.env
 - 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>。遇到 dsh 本身的功能/协议问题，请以上游为准。
 - 本项目只提供「便携化 + 多站点 + 密钥保护 + 双槽升级 + 图形配置」这些外壳能力。
 
+## 贡献
+
+改这个仓库一律走 PR，不直接推 `main`：
+
+- 从最新的 `main` 开短命分支（`feat/...`、`fix/...`、`docs/...`、`chore/...`），一个分支只做一件事，合完即删；
+- 提交信息按 Conventional Commits 写（例：`fix(watchdog): 丢盘判定改成连续 3 次都读不到`），正文说清「为什么」和「怎么验的」；
+- PR 描述里写清 改了什么 / 为什么 / **怎么验的**；合并前 `runtime/node/node.exe tests/run-all.js` 必须全绿（改了页面就要跑页面核查，改了守护/槽位/安装/插件就要跑对应的真机 e2e）。
+
+「改了哪些东西必须补哪类验证」的门槛表见 [`AGENTS.md`](AGENTS.md) 第 10 节。
+
 ## 许可
 
 本仓库代码：[MIT](LICENSE)。你可以自由使用、修改、再分发（保留版权声明即可）。dsh 本体仍是 DeepSeek AI 的 MIT 项目。

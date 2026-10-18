@@ -328,16 +328,25 @@ function installPnpm(versionOrMajor, opts) {
   const want = String(versionOrMajor || DEFAULT_PNPM_MAJOR);
   const major = want.split('.')[0];
   const dir = (major === DEFAULT_PNPM_MAJOR && pnpmVersionIn(PNPM_DIR)) ? PNPM_DIR : path.join(RUNTIME, 'pnpm-' + major);
-  const registry = (opts && opts.registry) || 'https://registry.npmmirror.com';
-  const args = [npmCli, 'install', '--prefix', dir, 'pnpm@' + want, '--no-fund', '--no-audit', '--loglevel=error', '--registry', registry];
-  const r = spawnSync(NODE_EXE, args, {
-    encoding: 'utf8', timeout: 900000, maxBuffer: 32 * 1024 * 1024,
-    env: Object.assign({}, process.env, { npm_config_cache: path.join(RUNTIME, 'npm-cache') }),
-  });
-  const out = (String(r.stdout || '') + String(r.stderr || '')).trim();
-  const version = pnpmVersionIn(dir);
-  if (!version) return { ok: false, error: 'pnpm 装完但用不了：' + out.split('\n').slice(-3).join(' '), dir };
-  return { ok: true, version, dir, text: out.split('\n').slice(-2).join(' ') };
+  // 走用户在页面里选的下载源（data/npm-source.json），不再硬编码镜像
+  const npmsrc = require('./npmsrc.js');
+  const npmrc = require('./npmrc.js');
+  const regs = (opts && opts.registry)
+    ? [{ url: opts.registry, label: '调用方指定 ' + opts.registry }]
+    : npmsrc.list();
+  let out = '';
+  for (const reg of regs) {
+    const args = [npmCli, 'install', '--prefix', dir, 'pnpm@' + want, '--no-fund', '--no-audit',
+      '--loglevel=error', '--registry', reg.url];
+    const r = spawnSync(NODE_EXE, args, {
+      encoding: 'utf8', timeout: 300000, maxBuffer: 32 * 1024 * 1024,
+      env: Object.assign(npmrc.env(), { npm_config_cache: path.join(RUNTIME, 'npm-cache') }),
+    });
+    out = '[' + reg.label + '] ' + (String(r.stdout || '') + String(r.stderr || '')).trim();
+    const v = pnpmVersionIn(dir);
+    if (v) return { ok: true, version: v, dir, text: out.split(String.fromCharCode(10)).slice(-2).join(' ') };
+  }
+  return { ok: false, error: 'pnpm 没装上：' + out.split(String.fromCharCode(10)).slice(-3).join(' '), dir };
 }
 
 /** 插件操作的额外 pnpm 参数。目前只有一条：放宽「新包冷却」（pnpm 12 默认 minimumReleaseAge=24h，
@@ -386,13 +395,24 @@ async function searchNpm(query, opts) {
   if (!q) return { ok: false, error: '请输入关键词（例如 deepseek dsh 插件名的一部分）' };
   const now = Date.now();
   if (!o.force && SEARCH_CACHE.data && SEARCH_CACHE.q === q && (now - SEARCH_CACHE.at) < 5 * 60 * 1000) return SEARCH_CACHE.data;
-  const url = 'https://registry.npmjs.org/-/v1/search?size=20&text=' + encodeURIComponent(q);
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 15000);
+  // 按页面里选的源顺序试（官方 / 镜像 / 自定义）
+  const bases = (o.registry ? [{ url: o.registry }] : require('./npmsrc.js').list()).map((r) => r.url);
+  let j = null;
+  let lastErr = null;
   try {
-    const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: ac.signal });
-    if (!res.ok) return { ok: false, error: 'npm 搜索返回 HTTP ' + res.status };
-    const j = await res.json();
+    for (const base of bases) {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 15000);
+      try {
+        const res = await fetch(base + '/-/v1/search?size=20&text=' + encodeURIComponent(q), { headers: { Accept: 'application/json' }, signal: ac.signal });
+        if (!res.ok) { lastErr = base + ' 搜索返回 HTTP ' + res.status; continue; }
+        j = await res.json();
+        break;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    if (!j) return { ok: false, error: 'npm 搜索失败：' + (lastErr || '没有可用的源') };
     const list = (j.objects || []).map((o2) => {
       const p = o2.package || {};
       return {
@@ -408,8 +428,6 @@ async function searchNpm(query, opts) {
   } catch (e) {
     const msg = (e && e.name === 'AbortError') ? '超时' : String((e && e.message) || e);
     return { ok: false, error: '搜不到：' + msg };
-  } finally {
-    clearTimeout(timer);
   }
 }
 

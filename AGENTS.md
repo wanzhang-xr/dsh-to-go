@@ -19,8 +19,11 @@
 
 ## 2. 约定（改代码前先读）
 
-1. **网页向导是唯一入口**：`dsh-ui.cmd` 起本地页面（首次向导 + 概览 / 站点和模型 / 升级 / 诊断 / 插件）。
-   **根目录只放 `dsh-ui.cmd` 和 `build.cmd`**——其余命令行工具一律进 `tools\rescue\`（应急用），新脚本也别往根目录加。命令行工具保留作备用，但**新功能优先做进页面**。
+1. **原生启动器是主入口**：`dsh-to-go.exe`（WinForms + WebView2，用系统自带 `csc.exe` 编译）起本地服务、开窗口、
+   把页面显示在无害的窗口里（没有地址栏）；`dsh-ui.cmd` 保留为**回退/应急**入口（缺 .NET/WebView2 时启动器会自动改走它）。
+   页面本身仍是唯一的功能面（首次向导 + 概览 / 站点和模型 / 升级 / 诊断 / 插件）。
+   **根目录只放 `dsh-to-go.exe`、`dsh-ui.cmd`、`build.cmd`**——其余命令行工具一律进 `tools\rescue\`（应急用），
+   新脚本也别往根目录加。命令行工具保留作备用，但**新功能优先做进页面**。
 2. **站点表是唯一事实来源**：`data\sites.json`。`data\site-patch.yml` 是由它生成的覆盖层；`data\site.json` 是旧格式，只在读取时兼容、不再写入。旧的 `/api/site` 接口已下线（返回 410），别加回来。
 3. **密钥三条红线**：不明文落盘、不进命令行参数、不进日志。口令只存在服务进程内存（`/api/login` 之后），启动 dsh 时经**子进程环境变量**传给启动器。
 4. **上游文件不要碰**：`data\profiles\*\cordis.patch.yml` 永远归 dsh 与其 Web UI 所有；我们的配置一律走自己的覆盖层（`--patch`）。
@@ -32,8 +35,16 @@
 ## 3. 目录
 
 ```
-build.cmd / build.ps1     一次性构建：下载并校验便携 Node，然后打开图形向导（-Cli 走命令行双槽安装）
-dsh-ui.cmd                图形向导与主页面（本地服务，127.0.0.1）—— 根目录只有它和 build.cmd
+build.cmd / build.ps1     一次性构建：下载并校验便携 Node，然后打开图形向导（-Cli 走命令行双槽安装）；
+                          顺带用系统 csc.exe 编译 dsh-to-go.exe（失败不影响其它入口）
+dsh-to-go.exe             启动器（构建产物，不进 git）：原生窗口 + WebView2，跑起来才存在
+dsh-ui.cmd                回退入口：本地服务 + 浏览器（缺 .NET/WebView2 时启动器自动改走这条）
+tools\launcher\           启动器源码（DshLauncher.cs）+ build-launcher.cmd
+third_party\
+  webview2\               WebView2 SDK 三个文件（入库，保证离线可构建）
+  fluent\                 Fluent UI Web Components 离线 bundle + 深色主题（入库）
+src\                       配置页源目录：head.html / legacy.css / fluent-overrides.css / partials\* / app.js
+tools\ui-build.js          把 src\ 合成单文件 ui\app.html（生成物，不要手改）
 tools\rescue\          应急脚本目录（图形页/服务出问题时才用；改这几个脚本要注意它们靠 %~dp0..\.. 找仓库根目录）
   tools\rescue\dsh.cmd                 起 dsh 自己的 Web UI（绕过我们的服务，对照用）
   tools\rescue\dsh-config.cmd          终端维护台（自检/升级/切槽/备份/密钥/站点）
@@ -86,6 +97,15 @@ runtime/ data/ secrets/ backups/   运行产物，**不进 git**
 
 ```bat
 runtime\node\node.exe --test tests\sites.test.js tests\secret.test.js tests\launch.test.js tests\jobs.test.js
+```
+
+启动器与页面（改了 `src\`、`tools\launcher\`、`tools\ui-build.js` 时必须跑）：
+
+```bat
+runtime\node\node.exe tools\ui-build.js                 :: 从 src\ 合成 ui\app.html
+runtime\node\node.exe tests\page-check.js                :: 单文件/零外链/既有 UI 约定
+runtime\node\node.exe tests\launcher-e2e.js              :: 真起 exe：窗口、服务、令牌桥、强杀自清
+runtime\node\node.exe tests\redline-audit.js --sentinel <哨兵>   :: 密钥泄露审计（先植入再删，验证红/绿）
 ```
 
 - 单测覆盖：站点表与覆盖层生成、密钥库（含「损坏库拒写」「缺 verifier 拒重建」「单条坏掉的部分解密」「写锁」）、任务引擎（锁、取消竞态、阶段识别）、安装器参数校验、版本比较器。
@@ -231,3 +251,38 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
 - **`main` 已开分支保护**：非管理员必须走 PR 才能合入；仓库所有者保留绕过能力，就是给上面那条「错别字例外」用的。强制推送、删除 `main` 都是关的，并要求线性历史（只收 squash / rebase）。
 - 行为变更（改了流程/API/页面/退出码）同步更新 `docs/ROADMAP.md` 的记录表。
 - 运行产物（`runtime/`、`data/`、`secrets/`、`backups/`、`*.enc`）已在 `.gitignore` 里，**不要**为了「方便复现」提交它们。
+
+## 12. 启动器与 Fluent 页面（改这两块前必读）
+
+- **启动器是什么**：`tools\launcher\DshLauncher.cs`，WinForms + WebView2，用系统自带的
+  `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` 编译（不需要 .NET SDK）。
+  产物是根目录的 `dsh-to-go.exe`（进 `.gitignore`），DLL 常驻 `third_party\webview2\`，运行时解析。
+- **两个已踩过的坑**（别推翻）：
+  1. WebView2 SDK 必须钉 **1.0.2903.40**。最新 1.0.4258.x 在本机运行时 155 上
+     `CoreWebView2Environment.CreateAsync` 会抛 `E_NOINTERFACE`。
+  2. 只用 `EnsureCoreWebView2Async(null)`（默认环境）；数据目录用
+     `CreationProperties.UserDataFolder` → `data\.webview`（在 `EnsureCoreWebView2Async` **之前**设置）。
+- **令牌怎么进页面**：URL 里永远不带令牌。壳从 ui-server 的 stdout 里抓 `?token=`，
+  页面启动时发 `{type:'dsh.token.request'}`，壳回 `{type:'dsh.token',token}`。
+  页面**优先**读 URL 里的 token（浏览器回退路径不变），读不到才向宿主要。
+- **关窗语义**：dsh 在跑且已解锁 → 问一次（默认停掉，可勾「让 dsh 继续在后台运行」）；
+  未解锁时 `/api/dsh/stop` 会 401，就只关窗口并如实告知。壳退出只杀**自己起的** ui-server。
+- **孤儿防护**：壳把自己的 pid 通过 `DSH_LAUNCHER_PID` 交给 ui-server；壳被强杀（taskkill /F）时，
+  ui-server 3 秒内自己退出。dsh 不跟着死——这与「后台继续」是同一套语义。
+- **页面现在由 `src\` 生成**：`ui\app.html` 是 `tools\ui-build.js` 的产物，**不要手改**；
+  改分区就改 `src\partials\<分区>.html`，改视觉就改 `src\fluent-overrides.css`。
+  产物必须保持单文件零外链（`tests\page-check.js` 会拦；内联的第三方 bundle 用
+  `/*{{FLUENT_BUNDLE_BEGIN}}*/ … /*{{FLUENT_BUNDLE_END}}*/` 圈起来，检查器不计它内部的注释链接）。
+- **Fluent 组件**：Fluent UI Web Components v3 由 `third_party\fluent\fluent.min.js` 内联。
+  只有这些标签可用：`fluent-button`、`fluent-tab`/`fluent-tablist`、`fluent-badge`、`fluent-switch`、
+  `fluent-checkbox`、`fluent-field`/`fluent-label`、`fluent-dialog`/`fluent-dialog-body`、`fluent-progress-bar`、
+  `fluent-spinner`、`fluent-text-input`、`fluent-textarea`、`fluent-dropdown`/`fluent-option`、
+  `fluent-message-bar`、`fluent-tooltip`、`fluent-accordion`/`fluent-accordion-item`、`fluent-divider`、
+  `fluent-toggle-button`（**没有** `fluent-card` / `fluent-tabs`）。二次构建见 `third_party\fluent\README.md`。
+- **五个红线（`tests\redline-audit.js` 验收）**：密钥/口令不进 exe/命令行/窗口标题/URL/日志/临时文件；
+  页面只显示长度占位、不提供「复制密钥」；WebView2 关 DevTools/右键/快捷键/密码保存/自动填充、
+  数据目录在盘上、导航只允许 `127.0.0.1:<port>`；启动器不保存任何凭据；剪贴板只复制命令/地址。
+  **跑审计前先关掉启动器**：否则 `data\.webview\...\Cookies`、`LOCK` 会被 WebView2 占用而读不了，
+  脚本会把它们列进 skipped（不是静默放过）——那种状态下的审计结论不完整。
+- **页面里的数据驱动外链**：插件卡片等位置会用数据拼出 `href`（`target="_blank"`）。页面侧不拦，
+  靠启动器的 `NavigationStarting` 白名单只放行 `127.0.0.1:<port>`；浏览器回退路径下由浏览器自己处理。

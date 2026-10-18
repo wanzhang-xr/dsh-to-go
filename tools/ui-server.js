@@ -76,6 +76,22 @@ const PORT = parseInt(flag('--port', '3181'), 10);
 const TOKEN = crypto.randomBytes(24).toString('base64url');
 const NO_OPEN = argv.includes('--no-open');
 
+// 启动器（原生窗口）会把自己的 pid 传进来：它一死（包括被任务管理器强杀），
+// 本服务几秒内也退出，不留孤儿服务。dsh 是独立子进程，不跟着退出——
+// 这和「关窗时选择让 dsh 在后台继续」是同一套语义。
+const LAUNCHER_PID = parseInt(process.env.DSH_LAUNCHER_PID || '', 10) || 0;
+if (LAUNCHER_PID > 0) {
+  const launcherWatch = setInterval(() => {
+    let alive = true;
+    try { process.kill(LAUNCHER_PID, 0); } catch (e) { alive = !!e && e.code === 'EPERM'; }
+    if (!alive) {
+      console.log('  【启动器已退出】配置服务随之退出（dsh 不受影响）');
+      process.exit(0);
+    }
+  }, 3000);
+  launcherWatch.unref();
+}
+
 // ---------------------------------------------------------------- 口令会话
 // 口令只活在这个进程的内存里：页面用 /api/login 交一次，之后凡是「碰密钥 / 启停 dsh /
 // 跑安装任务」的操作都要求已登录。进程一退，口令就没了（这正是设计目标）。
@@ -433,13 +449,18 @@ async function handleApi(req, res, url) {
   if (bodyText) { try { body = JSON.parse(bodyText); } catch (e) { return send(400, { error: '请求体不是合法 JSON' }); } }
 
   const p = url.pathname;
-  // 需要「已输入口令」才允许的写操作：碰密钥、跑安装/插件、启停进程。
+  // 需要「已输入口令」才允许的写操作：碰密钥、跑安装/插件、启停进程，
+  // 以及改站点表 / 删站点（可连带删密钥）/ 切活动槽 / 重建覆盖层。
+  // 下面这一行只拦 POST：GET /api/sites 读站点不需要解锁。
   // 端口/临时目录这类不碰密钥的设置不在此列。
   const NEEDS_LOGIN = ['/api/key', '/api/key/clear', '/api/keys/migrate', '/api/site', '/api/site/clear',
     '/api/upgrade', '/api/jobs/install', '/api/jobs/upgrade', '/api/jobs/pnpm', '/api/jobs/cancel', '/api/drive-lost/clear',
     '/api/market/refresh',
     '/api/plugins/toggle', '/api/plugins/install', '/api/plugins/uninstall', '/api/plugins/allow-version',
     '/api/plugins/pnpm-setup',
+    '/api/sites', '/api/sites/delete', '/api/slot/switch', '/api/overlay/rebuild',
+    // 下载源决定「装进来的代码从哪来」，属于供应链入口，必须解锁后才能改
+    '/api/npm-source',
     '/api/dsh/start', '/api/dsh/stop', '/api/backup'];
   if (req.method === 'POST' && NEEDS_LOGIN.indexOf(p) >= 0 && !requireLogin()) {
     return send(401, { error: '需要先输入口令解锁（口令只存在本服务的内存里）' });
@@ -519,9 +540,39 @@ async function handleApi(req, res, url) {
       return send(200, { ok: true, state: state() });
     }
 
+    if (p === '/api/npm-source' && req.method === 'GET') {
+      const npmsrc = require('./npmsrc.js');
+      return send(200, Object.assign({}, npmsrc.read(), { modes: npmsrc.MODES, known: npmsrc.KNOWN }));
+    }
+    if (p === '/api/npm-source' && req.method === 'POST') {
+      const npmsrc = require('./npmsrc.js');
+      try {
+        return send(200, { ok: true, source: npmsrc.write({ mode: body.mode, url: body.url }) });
+      } catch (e) {
+        return send(400, { error: String(e && e.message || e) });
+      }
+    }
+
     if (p === '/api/slot/switch' && req.method === 'POST') {
+      // dsh 在跑的时候切指针等于「运行中的进程与磁盘上的版本不一致」，先让它停。
+      const st = dshStatus();
+      if (st.running) {
+        return send(409, {
+          error: 'dsh 正在运行，先把 dsh 停掉再切槽（否则跑的还是旧槽的代码）',
+          state: state(),
+        });
+      }
       const r = runConfig(['switch']);
-      return send(r.status === 0 ? 200 : 500, { ok: r.status === 0, text: r.text, state: state() });
+      if (r.status === 0) return send(200, { ok: true, text: r.text, state: state() });
+      // 「目标槽还没装 dsh」是前置条件不满足，不是服务器挂了：409 + 工具的原话
+      const precondition = /还没有 dsh|not-installed|请先升级/i.test(String(r.text || ''));
+      const lastLine = String(r.text || '').trim().split(/\r?\n/).filter(Boolean).pop() || '切换失败';
+      return send(precondition ? 409 : 500, {
+        ok: false,
+        error: lastLine,
+        text: r.text,
+        state: state(),
+      });
     }
 
     if (p === '/api/portable-temp' && req.method === 'POST') {

@@ -38,8 +38,9 @@ build.cmd        :: 下载并校验便携 Node，然后自动打开图形向导
 之后日常只用两个入口：
 
 ```bat
-dsh-ui.cmd       :: 图形入口（向导 + 概览 / 站点和模型 / 升级 / 诊断 / 插件）
-build.cmd        :: 一次性构建（第一次插盘时用）
+dsh-to-go.exe    :: 启动器（推荐）：原生窗口里就是配置页，关窗时会问要不要连 dsh 一起停
+dsh-ui.cmd       :: 回退入口：本地服务 + 浏览器（启动器打不开时用它）
+build.cmd        :: 一次性构建（第一次插盘时用；顺带编译启动器）
 ```
 
 **要求**：Windows 10/11 x64；2 GB 空闲空间；构建时需要联网。**运行时不要求宿主装 Node。**
@@ -50,8 +51,13 @@ build.cmd        :: 一次性构建（第一次插盘时用）
 
 ```
 dsh-to-go\
-├─ dsh-ui.cmd               日常唯一入口：图形页（向导 + 概览 / 站点和模型 / 升级 / 诊断 / 插件）
-├─ build.cmd                一次性构建（无依赖引导）
+├─ dsh-to-go.exe            启动器（构建产物）：原生窗口 + WebView2，日常就双击它
+├─ dsh-ui.cmd               回退入口：本地服务 + 浏览器（向导 + 概览 / 站点和模型 / 升级 / 诊断 / 插件）
+├─ build.cmd                一次性构建（无依赖引导，顺带编译启动器）
+├─ src\                     配置页源目录（head / legacy.css / fluent-overrides.css / partials\* / app.js）
+├─ third_party\webview2\    WebView2 SDK（入库，离线可构建）
+├─ third_party\fluent\      Fluent UI Web Components 离线 bundle + 深色主题（入库）
+├─ tools\launcher\          启动器源码 + build-launcher.cmd
 ├─ tools\rescue\            应急脚本（图形页/服务出问题时才用）
 │   ├─ dsh.cmd              直接起 dsh 自己的 Web UI（不走我们的服务）
 │   ├─ dsh-cli.cmd          命令行 / headless 用法
@@ -79,8 +85,9 @@ dsh-to-go\
 
 | 入口 | 用途 |
 |---|---|
-| `dsh-ui.cmd` | **图形入口（日常就用它）**：首次向导 + 概览 / 站点和模型 / 升级 / 诊断 / 插件 |
-| `build.cmd` | 一次性构建：下便携 Node、装 dsh 到 A/B 槽、初始化配置 |
+| `dsh-to-go.exe` | **启动器（日常就用它）**：原生窗口里是配置页；没有地址栏；关窗时问一次要不要连 dsh 一起停 |
+| `dsh-ui.cmd` | 回退入口：起本地服务并用浏览器打开配置页（启动器缺 .NET/WebView2 时自动走这条） |
+| `build.cmd` | 一次性构建：下便携 Node、装 dsh 到 A/B 槽、初始化配置、编译启动器 |
 | `tools\rescue\dsh.cmd` | 应急：直接起 dsh 自己的 Web UI（绕过我们的服务，锁端口那类问题用它对照） |
 | `tools\rescue\dsh-cli.cmd` | 不打开界面的用法：`tools\rescue\dsh-cli.cmd --version`、`tools\rescue\dsh-cli.cmd headless "改个 bug"` |
 | `tools\rescue\dsh-config.cmd` | 终端维护台：自检 / 升级 / 切槽 / 备份 / 密钥 / 站点配置 / 打开图形页 |
@@ -102,6 +109,26 @@ dsh-to-go\
 
 间隔和次数可以用环境变量调（进程内 `WZD_DRIVE_POLL_MS` / `WZD_DRIVE_MISSES`，不会写进系统）。
 **注意**：守护只能发现「读不到」，发现不了「盘还在但写入失败」（比如半接触不良）——那种情况 dsh 自己会报错。
+
+## 启动器（原生窗口）
+
+双击 `dsh-to-go.exe` 就是一个应用窗口：里面是配置页，没有地址栏、没有浏览器工具栏。
+
+- **它是怎么起的**：启动器起本地服务（隐藏控制台）、自动挑一个空闲端口、从输出里抓本次运行的令牌，
+  开窗后通过 WebView2 的消息桥把令牌交给页面。**令牌不进地址栏、不进历史、不进窗口标题、不进日志。**
+- **关窗时**：dsh 在跑就问一次「要不要连 dsh 一起停掉」——默认停掉；勾上「让 dsh 继续在后台运行」就留着。
+  没解锁时停不了（停止操作需要口令），窗口会如实告诉你 dsh 还在跑。
+- **不泄露密钥**：口令只在页面里输入、只存在服务进程内存；启动器不保存任何凭据（没有「记住口令」）；
+  页面只显示密钥长度占位；WebView2 的开发者工具、右键菜单、浏览器快捷键、密码保存、自动填充全部关闭；
+  窗口只能停留在 `127.0.0.1`，外链导航会被拦下。验收脚本是 `tests/redline-audit.js`。
+- **不碰宿主机**：运行期只往盘内写（`data\`、`runtime\`、`backups\`）；不写注册表、不写环境变量、
+  不装服务与计划任务。唯一例外是 dsh 子进程的临时目录（默认宿主 `%LOCALAPPDATA%\Temp`，
+  因为 ACL 沙箱要 `WRITE_OWNER`），可用 `runtime\usb-temp.txt` 切回盘内。
+  细节见 [`docs/PORTABILITY.md`](docs/PORTABILITY.md)，守卫脚本是 `tests/portability-audit.js`。
+- **第三方许可证**：随盘分发的 Node.js、WebView2 SDK、Fluent UI/FAST、dsh 图标各自许可与声明
+  集中在 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)（对应的 LICENSE 文本也放在组件目录里）。
+- **缺东西时**：没有 `runtime\node` → 窗口里显示「请先跑 build.cmd」；缺 WebView2 / .NET Framework
+  → 自动改走 `dsh-ui.cmd` 用浏览器打开，不会打不开。
 
 ## 密钥是怎么保住的
 
@@ -147,6 +174,8 @@ dsh 自己的凭据分层是「启动环境 > `.credentials.yaml` > 项目 `.env
 
 | 现象 | 原因与处理 |
 |---|---|
+| 第一次双击 `dsh-to-go.exe` 弹出 SmartScreen「已保护你的电脑」 | 没做代码签名（便携包不带证书）。点「更多信息 → 仍要运行」即可。想要彻底消掉只能买代码签名证书。 |
+| 双击 exe 没反应，或窗口一闪就没 | 看 `data\logs\launcher.log`：常见原因是这台机器没有 WebView2 运行时（正常 Win10 带 Edge 就有），或 `runtime\node` 还没构建。前者会自动改走 `dsh-ui.cmd`；后者先跑 `build.cmd`。 |
 | `sandbox-local … temp grant materialization failed and its cleanup also failed` | Windows ACL 沙箱要在 `os.tmpdir()` 下建私有临时目录并写安全描述符（含完整性标签），这一步需要目录的 `WRITE_OWNER`。数据盘根目录通常只给登录用户 `Modify`（非提升令牌下 `Administrators:(F)` 是 deny-only），于是 `SetNamedSecurityInfoW` 返回 Win32 5。**启动器默认把临时目录放在宿主 `%LOCALAPPDATA%\Temp`**；确实想放盘上，建 `runtime\usb-temp.txt`，并确保那块盘给足 `WRITE_OWNER`。 |
 | `error: --profile <name> is required` | dsh 的参数解析不接受「启动器标记 + 裸命令名」的顺序（`--patch f web` 会被拒）。启动器现在把标记插在 profile/命令之后（`--profile web --patch f …`、`web --patch f …` 均可）。 |
 | 中文提示在命令行里变乱码/截断 | `cmd.exe` 用系统 ANSI（中文机器是 GBK）解析 `.bat`，UTF-8 中文会破坏行与括号配对。所以所有 `.cmd` 保持**纯 ASCII**，中文提示放在 `tools\msg\*.txt`（UTF-8）里由 `tools\say.cmd` 打印。 |

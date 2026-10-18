@@ -1,0 +1,454 @@
+  <!-- ============================================ 插件 -->
+  <section id="tab-plugins" role="tabpanel" hidden>
+    <style>
+      /* ===== 插件分区：Fluent 2 分层（分区容器 → 分区标题 → 卡片内主次） ===== */
+      #tab-plugins { display: flex; flex-direction: column; gap: 14px; }
+      #tab-plugins .plug-lede {
+        margin: 0; font-size: 13px; line-height: 1.65; color: var(--colorNeutralForeground3, #adadad);
+        max-width: 96ch;
+      }
+      #tab-plugins .plug-lede b { color: var(--colorNeutralForeground2, #d6d6d6); font-weight: 600; }
+
+      /* 分区容器：一张「面」而不是一堆平铺卡片 */
+      #tab-plugins .plug-panel {
+        background: var(--colorNeutralBackground1, #292929);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusLarge, 6px);
+        padding: 14px 16px 16px;
+      }
+      #tab-plugins .plug-panel[hidden] { display: none !important; }
+
+      /* 分区标题：标题 + 计数 + 一句副标题，一条分隔线压住内容 */
+      #tab-plugins .plug-panel-head {
+        display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+        padding-bottom: 10px; margin-bottom: 12px;
+        border-bottom: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+      }
+      #tab-plugins .plug-h3 {
+        margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .1px;
+        color: var(--colorNeutralForeground1, #fff);
+      }
+      #tab-plugins .plug-count {
+        font-size: 11.5px; font-weight: 600; color: var(--colorNeutralForeground3, #adadad);
+        background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: 10px; padding: 1px 8px; white-space: nowrap;
+      }
+      #tab-plugins .plug-panel-sub { font-size: 12px; color: var(--colorNeutralForeground4, #9a9a9a); }
+
+      /* 作用域条：显示哪些 */
+      #tab-plugins .plug-scope {
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+        padding: 10px 14px;
+        background: var(--colorNeutralBackground2, #1f1f1f);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusLarge, 6px);
+      }
+      #tab-plugins .plug-scope-label {
+        font-size: 12px; font-weight: 600; color: var(--colorNeutralForeground3, #adadad);
+      }
+
+      /* 状态表：标签列弱化，值列为主 */
+      #tab-plugins .plug-grid {
+        display: grid; grid-template-columns: 190px minmax(0, 1fr);
+        gap: 8px 18px; align-items: start;
+      }
+      #tab-plugins .plug-grid > div:nth-child(odd) {
+        font-size: 12.5px; color: var(--colorNeutralForeground3, #adadad); padding-top: 1px;
+      }
+      #tab-plugins .plug-grid > div:nth-child(even) { font-size: 13px; }
+
+      /* 工具条：按操作层级排列，主操作在右 */
+      #tab-plugins .plug-toolbar {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px;
+      }
+      #tab-plugins .plug-toolbar--soft {
+        margin-top: 10px; padding-top: 10px;
+        border-top: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+      }
+      #tab-plugins .plug-toolbar .sub { margin: 0; }
+
+      /* 原生输入/下拉：Fluent 2 观感 */
+      #tab-plugins .f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      #tab-plugins .f label {
+        font-size: 11.5px; font-weight: 600; color: var(--colorNeutralForeground3, #adadad);
+      }
+      #tab-plugins input:not([type="checkbox"]),
+      #tab-plugins select {
+        height: 32px; min-width: 0; padding: 0 10px;
+        font: inherit; font-size: 13px; color: var(--colorNeutralForeground1, #fff);
+        background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke1, #666);
+        border-radius: var(--borderRadiusMedium, 4px);
+      }
+      #tab-plugins input:not([type="checkbox"]):hover,
+      #tab-plugins select:hover { border-color: var(--colorNeutralStrokeAccessible, #adadad); }
+      #tab-plugins input:not([type="checkbox"]):focus,
+      #tab-plugins select:focus {
+        outline: none; border-color: var(--colorBrandStroke1, #479ef5);
+        box-shadow: inset 0 0 0 1px var(--colorBrandStroke1, #479ef5);
+      }
+      #tab-plugins input.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; }
+      #tab-plugins select { padding-right: 6px; }
+
+      /* 折叠区（详情 / 高级 / 危险 / 日志） */
+      #tab-plugins details.more {
+        margin-top: 12px; padding: 0 12px;
+        background: var(--colorNeutralBackground2, #1f1f1f);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusMedium, 4px);
+      }
+      #tab-plugins details.more > summary {
+        list-style: none; cursor: pointer; padding: 9px 0;
+        font-size: 12.5px; font-weight: 600; color: var(--colorNeutralForeground3, #adadad);
+        display: flex; align-items: center; gap: 8px;
+      }
+      #tab-plugins details.more > summary::-webkit-details-marker { display: none; }
+      #tab-plugins details.more > summary::before {
+        content: "▸"; font-size: 10px; color: var(--colorNeutralForeground4, #9a9a9a);
+        transition: transform 100ms ease;
+      }
+      #tab-plugins details.more[open] > summary::before { content: "▾"; }
+      #tab-plugins details.more[open] > summary {
+        border-bottom: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        margin-bottom: 10px; color: var(--colorNeutralForeground2, #d6d6d6);
+      }
+      #tab-plugins details.more > .body { padding-bottom: 12px; display: grid; gap: 6px; }
+      #tab-plugins details.more .ln { font-size: 12.5px; color: var(--colorNeutralForeground3, #adadad); }
+      #tab-plugins details.more .ln code { font-size: 12px; }
+      #tab-plugins details.plug-danger { border-color: rgba(255, 153, 164, .35); }
+      #tab-plugins details.plug-danger > summary { color: var(--colorStatusDangerForeground1, #ff99a4); }
+
+      /* ---- 三块分区的切换：Fluent Pivot（下划线指示） ---- */
+      #tab-plugins .plug-tabs {
+        display: flex; gap: 2px; margin: 0 0 14px;
+        border-bottom: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+      }
+      #tab-plugins .plug-tabs button {
+        position: relative; appearance: none; -webkit-appearance: none;
+        background: transparent; border: 0; border-bottom: 2px solid transparent;
+        border-radius: 0; padding: 8px 14px; margin-bottom: -1px;
+        min-height: 36px; font: inherit; font-size: 13px; font-weight: 600;
+        color: var(--colorNeutralForeground3, #adadad); cursor: pointer;
+        transition: color 100ms ease, border-color 100ms ease;
+      }
+      #tab-plugins .plug-tabs button:hover { color: var(--colorNeutralForeground1, #fff); }
+      #tab-plugins .plug-tabs button[aria-selected="true"] {
+        background: transparent; color: var(--colorBrandForeground1, #479ef5);
+        border-bottom-color: var(--colorBrandStroke1, #479ef5); font-weight: 600;
+      }
+      #tab-plugins #sub-installed, #tab-plugins #sub-market { padding-top: 2px; }
+
+      /* ---- 插件卡片：图标｜主信息；标题/元信息/简介/条目分开层级 ---- */
+      #tab-plugins .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+      #tab-plugins .pcard {
+        display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px;
+        padding: 14px; border-radius: var(--borderRadiusLarge, 6px);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        background: var(--colorNeutralBackground2, #1f1f1f);
+        transition: border-color 100ms ease, background 100ms ease;
+      }
+      #tab-plugins .pcard:hover {
+        border-color: var(--colorNeutralStroke2, #525252);
+        background: var(--colorNeutralBackground1, #292929);
+      }
+      #tab-plugins .pcard.off {
+        opacity: 1; border-left: 3px solid var(--colorStatusWarningForeground1, #fce100);
+        background: linear-gradient(90deg, rgba(252, 225, 0, .05), transparent 42%),
+                    var(--colorNeutralBackground2, #1f1f1f);
+      }
+      #tab-plugins .pcard .pc-icon {
+        flex: none; width: 40px; height: 40px; border-radius: var(--borderRadiusMedium, 4px);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; font-weight: 700;
+        background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        color: var(--colorNeutralForeground2, #d6d6d6);
+      }
+      #tab-plugins .pcard .pc-main { min-width: 0; }
+      #tab-plugins .pcard .pc-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      #tab-plugins .pcard .pc-title b {
+        font-size: 13.5px; font-weight: 600; color: var(--colorNeutralForeground1, #fff);
+        overflow-wrap: anywhere;
+      }
+      /* 标题后的版本/来源/风险小标签：压到最小、统一成中性胶囊 */
+      #tab-plugins .pcard .pc-title .pill {
+        font-size: 11px; font-weight: 600; line-height: 16px; padding: 0 6px;
+        border-radius: 8px; background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        color: var(--colorNeutralForeground3, #adadad);
+      }
+      #tab-plugins .pcard .pc-sub {
+        margin-top: 4px; font-size: 12px; color: var(--colorNeutralForeground4, #9a9a9a);
+        overflow-wrap: anywhere;
+      }
+      #tab-plugins .pcard .pc-desc {
+        margin-top: 8px; font-size: 12.5px; line-height: 1.6;
+        color: var(--colorNeutralForeground2, #d6d6d6);
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      }
+      /* 条目开关与「详细 / 删除」分开：开关在上一条，操作在下一条 */
+      #tab-plugins .pcard .pc-actions {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        margin-top: 10px; padding-top: 10px;
+        border-top: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+      }
+      #tab-plugins .pcard .pc-actions label.switch {
+        display: inline-flex; align-items: center; gap: 7px;
+        min-height: 26px; padding: 2px 8px; border-radius: 12px;
+        background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+      }
+      #tab-plugins .pcard .pc-actions label.switch .sub { font-size: 11.5px; margin: 0; }
+      #tab-plugins .pcard .pc-actions .btn {
+        padding: 3px 10px; min-height: 28px; font-size: 12.5px;
+        background: transparent; border: 1px solid var(--colorNeutralStroke2, #525252);
+        color: var(--colorNeutralForeground2, #d6d6d6); border-radius: var(--borderRadiusMedium, 4px);
+      }
+      #tab-plugins .pcard .pc-actions .btn:hover {
+        background: var(--colorNeutralBackground3, #141414);
+        color: var(--colorNeutralForeground1, #fff);
+      }
+      #tab-plugins .pcard .pc-actions > .btn:last-child,
+      #tab-plugins .pcard .pc-actions > .sub:last-child { margin-left: auto; }
+      #tab-plugins .pcard .pc-actions .btn.danger {
+        color: var(--colorStatusDangerForeground1, #ff99a4);
+        border-color: rgba(255, 153, 164, .35);
+      }
+      #tab-plugins .pcard .pc-actions .btn.danger:hover {
+        background: var(--colorStatusDangerBackground1, #3f1a1d);
+      }
+      #tab-plugins .pcard .pc-actions .btn.primary {
+        background: var(--colorBrandBackground, #115ea3); border-color: transparent; color: #fff;
+      }
+      #tab-plugins .pcard .pc-actions .btn.primary:hover { background: var(--colorBrandBackgroundHover, #0f6cbd); }
+      #tab-plugins .pcard .pc-actions .pill { font-size: 11.5px; }
+
+      /* 显示更多 / 空态 */
+      #tab-plugins .plug-more-row { display: flex; justify-content: center; margin-top: 12px; }
+      #tab-plugins .plug-more-row .btn {
+        background: transparent; border: 1px solid var(--colorNeutralStroke2, #525252);
+        color: var(--colorNeutralForeground2, #d6d6d6); border-radius: var(--borderRadiusMedium, 4px);
+        padding: 5px 16px; min-height: 30px; font-size: 12.5px;
+      }
+      #tab-plugins .plug-more-row .btn:hover { background: var(--colorNeutralBackground2, #1f1f1f); }
+      #tab-plugins .plug-empty { margin-top: 8px; font-size: 12.5px; color: var(--colorNeutralForeground4, #9a9a9a); }
+
+      /* 市场：搜索/筛选成组，分页与信息条成组 */
+      #tab-plugins .plug-filterbar {
+        display: grid; grid-template-columns: minmax(180px, 1fr) 150px 150px auto;
+        gap: 10px; align-items: end; padding: 12px;
+        background: var(--colorNeutralBackground2, #1f1f1f);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusLarge, 6px);
+      }
+      #tab-plugins .plug-mktinfo {
+        margin-top: 10px; padding: 8px 12px; font-size: 12.5px;
+        color: var(--colorNeutralForeground2, #d6d6d6);
+        background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusMedium, 4px);
+      }
+      #tab-plugins .plug-mktinfo .sub { color: var(--colorNeutralForeground4, #9a9a9a); }
+      #tab-plugins #mkt-cards { margin-top: 10px; }
+      #tab-plugins #mkt-pager {
+        display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+        margin-top: 12px; padding-top: 10px; font-size: 12.5px;
+        color: var(--colorNeutralForeground3, #adadad);
+        border-top: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+      }
+      #tab-plugins #mkt-pager .btn {
+        background: transparent; border: 1px solid var(--colorNeutralStroke2, #525252);
+        color: var(--colorNeutralForeground2, #d6d6d6); border-radius: var(--borderRadiusMedium, 4px);
+        padding: 3px 12px; min-height: 28px; font-size: 12.5px;
+      }
+      #tab-plugins #mkt-pager .btn:hover { background: var(--colorNeutralBackground2, #1f1f1f); }
+
+      /* 手动安装的高级块：两行「字段 + 操作」对齐 */
+      #tab-plugins .plug-fields { display: grid; gap: 8px; margin-top: 10px; }
+      #tab-plugins .plug-fields .row { margin: 0; align-items: end; }
+      #tab-plugins .plug-fields .f { flex: 1; }
+
+      /* 日志：折叠区里，任务格 + 等宽日志 */
+      #tab-plugins details.plug-logbox {
+        margin-top: 0; padding: 0 14px;
+        background: var(--colorNeutralBackground1, #292929);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusLarge, 6px);
+      }
+      #tab-plugins details.plug-logbox > summary { font-size: 13px; color: var(--colorNeutralForeground2, #d6d6d6); }
+      #tab-plugins details.plug-logbox #plug-job { margin-bottom: 10px; }
+      #tab-plugins #plug-log {
+        margin: 0 0 14px; padding: 10px 12px; max-height: 260px; overflow: auto;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px;
+        line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
+        background: var(--colorNeutralBackground3, #141414);
+        border: 1px solid var(--colorNeutralStroke3, #3d3d3d);
+        border-radius: var(--borderRadiusMedium, 4px);
+      }
+
+      /* 详情浮层 */
+      #tab-plugins .overlay .pv {
+        max-width: 720px; width: min(720px, 92vw); max-height: 82vh; overflow: auto;
+        background: var(--colorNeutralBackground1, #292929);
+        border: 1px solid var(--colorNeutralStroke2, #525252);
+        border-radius: var(--borderRadiusXLarge, 8px); padding: 18px;
+        box-shadow: var(--shadow16, 0 8px 16px rgba(0, 0, 0, .28));
+      }
+      #tab-plugins #pd-body { font-size: 13px; line-height: 1.6; }
+
+      /* Fluent 组件在本分区的尺寸与隐藏兜底（自定义元素的 :host display 会压过 [hidden]） */
+      #tab-plugins fluent-button { font-family: inherit; }
+      #tab-plugins fluent-button[hidden] { display: none !important; }
+
+      @media (max-width: 760px) {
+        #tab-plugins .plug-grid { grid-template-columns: 1fr; gap: 2px 0; }
+        #tab-plugins .plug-grid > div:nth-child(odd) { margin-top: 8px; }
+        #tab-plugins .plug-filterbar { grid-template-columns: 1fr; }
+        #tab-plugins .cards { grid-template-columns: 1fr; }
+      }
+    </style>
+
+    <header class="plug-head">
+      <p class="plug-lede">官方插件随 dsh 装在<b>活动槽</b>里，不用单独管；第三方插件装在本盘的插件目录里，由盘上自带的 <b>pnpm</b> 管理。
+        条目的启用/停用<b>重启 dsh 才生效</b>，dsh 运行时这些按钮会被拒绝。</p>
+    </header>
+
+    <!-- ---------- 分区一：环境 ---------- -->
+    <section class="plug-panel" aria-labelledby="plug-env-h">
+      <div class="plug-panel-head">
+        <h3 class="plug-h3" id="plug-env-h">插件环境</h3>
+        <span class="plug-panel-sub">pnpm、活动槽与当前 dsh 状态</span>
+      </div>
+
+      <div class="grid plug-grid" id="plug-status"></div>
+
+      <div class="plug-toolbar">
+        <fluent-button id="btn-plug-refresh" appearance="outline">重新读取</fluent-button>
+        <fluent-button id="btn-pnpm-setup" appearance="accent">准备 pnpm</fluent-button>
+        <span class="sub" id="plug-pnpm-note"></span>
+      </div>
+      <div class="flash" id="plug-out"></div>
+
+      <div class="plug-toolbar plug-toolbar--soft">
+        <label class="switch"><input type="checkbox" id="plug-relax"><span class="track"></span><span>放宽 pnpm 的「新包冷却」</span></label>
+        <span class="sub">pnpm 12 默认拒绝 24 小时内发布的包（连普通删除都会被它拦住）。勾上就能装到刚发布的包——风险自负。</span>
+      </div>
+
+      <details class="more"><summary>详情：插件装在哪、「条目」是什么</summary><div class="body">
+        <span class="ln">第三方插件目录 <code>data/profiles/web</code>；装它用的 pnpm 和 store 都在本盘上，不碰宿主。</span>
+        <span class="ln">条目启停写在我们的覆盖层里，作为 <code>--patch</code> 传给 dsh。</span>
+        <span class="ln">「条目」= dsh 配置树里的开关。一个插件可能带多个条目，所以一张卡上可能有好几个开关。</span>
+      </div></details>
+      <details class="more"><summary>详情：放宽「新包冷却」实际做了什么</summary><div class="body">
+        <span class="ln">勾上之后，插件操作按 <code>--config.minimumReleaseAge=0</code> 跑 pnpm（这是 pnpm 的供应链安全策略，默认关着，不替你决定）。</span>
+      </div></details>
+    </section>
+
+    <!-- ---------- 作用域条 ---------- -->
+    <div class="plug-scope">
+      <span class="plug-scope-label">显示哪些</span>
+      <label class="switch"><input type="checkbox" id="show-official"><span class="track"></span><span>官方插件</span></label>
+      <label class="switch"><input type="checkbox" id="show-third"><span class="track"></span><span>第三方插件</span></label>
+      <span class="sub" title="显示开关存在 data/ui-prefs.json，跟盘走">开关跟着盘走</span>
+    </div>
+
+    <!-- ---------- 分区二：官方插件 ---------- -->
+    <section class="plug-panel" id="block-official" aria-labelledby="plug-off-h">
+      <div class="plug-panel-head">
+        <h3 class="plug-h3" id="plug-off-h">官方插件</h3>
+        <span class="plug-count" id="official-count"></span>
+        <span class="plug-panel-sub">随活动槽安装，不能删除</span>
+      </div>
+      <p class="plug-lede" style="margin-bottom:12px">dsh 自带的包（<code>@deepseek-ai/*</code>），随活动槽一起装，<b>不能删除</b>。可以停用单个条目——
+        注意<b>停用错了条目 dsh 会启动失败</b>（另标了「官方条件控制」的那种，本来由 dsh 自己按条件决定）。</p>
+
+      <div class="plug-toolbar" style="margin-top:0">
+        <div class="f"><label for="official-filter">筛选（条目 id 或包名）</label><input id="official-filter" placeholder="例如 tool / llm / agent"></div>
+        <span class="sub" id="official-shown"></span>
+      </div>
+
+      <div class="cards" id="official-cards" style="margin-top:12px"></div>
+      <div class="plug-more-row"><button class="btn" id="official-more" hidden>显示更多</button></div>
+      <div class="flash" id="plug-toggle-out"></div>
+    </section>
+
+    <!-- ---------- 分区三：第三方插件（已安装 / 插件市场 子页签） ---------- -->
+    <section class="plug-panel" id="block-third" aria-labelledby="plug-third-h">
+      <div class="plug-panel-head">
+        <h3 class="plug-h3" id="plug-third-h">第三方插件</h3>
+        <span class="plug-count" id="third-count"></span>
+        <span class="plug-panel-sub">装在本盘的插件目录里</span>
+      </div>
+
+      <div class="subtabs plug-tabs" role="tablist" aria-label="第三方插件">
+        <button role="tab" id="subtab-installed" aria-selected="true">已安装</button>
+        <button role="tab" id="subtab-market" aria-selected="false">插件市场</button>
+      </div>
+
+      <div id="sub-installed" role="tabpanel">
+        <div class="cards" id="third-cards"></div>
+        <div class="sub plug-empty" id="third-empty"></div>
+
+        <details class="more" style="margin-top:14px">
+          <summary>手动安装：按包名（市场里没有的包，或私有包）</summary>
+          <div class="plug-fields">
+            <div class="row">
+              <div class="f"><label for="plug-name">包名或安装源</label><input id="plug-name" class="mono" placeholder="@scope/name、dsh-xxx、github:作者/仓库"></div>
+              <fluent-button id="btn-plug-install" appearance="accent">安装</fluent-button>
+            </div>
+            <div class="row">
+              <div class="f"><label for="plug-q">在 npm 里搜一搜（不是插件索引，搜到请自行确认）</label><input id="plug-q" placeholder="例如 dsh memory / 作者名"></div>
+              <fluent-button id="btn-plug-search" appearance="outline">搜索</fluent-button>
+            </div>
+            <div id="plug-search" class="sub">（搜索结果会列在这里，点一行填进上面的包名框）</div>
+          </div>
+        </details>
+
+        <details class="more plug-danger">
+          <summary>危险：版本不匹配时，接受风险并安装（dsh 会警告可能崩溃/丢数据）</summary>
+          <div class="plug-fields">
+            <div class="row">
+              <div class="f"><label for="plug-av-spec">包名@版本（照抄 dsh 日志里给出的那一行）</label><input id="plug-av-spec" class="mono" placeholder="@scope/name@1.2.3"></div>
+              <div class="f"><label for="plug-av-ver">dsh 版本</label><input id="plug-av-ver" class="mono" placeholder="0.2.1-alpha.2"></div>
+              <button class="btn danger" id="btn-plug-allow">接受风险</button>
+            </div>
+            <div class="flash" id="plug-av-out"></div>
+          </div>
+        </details>
+      </div>
+
+      <div id="sub-market" role="tabpanel" hidden>
+        <div class="plug-filterbar">
+          <div class="f"><label for="mkt-q">搜索</label><input id="mkt-q" placeholder="名称 / 作者 / 简介，例如 memory"></div>
+          <div class="f"><label for="mkt-cat">分类</label><select id="mkt-cat"></select></div>
+          <div class="f"><label for="mkt-sort">排序</label><select id="mkt-sort">
+            <option value="stars">Star 最多</option>
+            <option value="downloads">下载最多</option>
+            <option value="added">最新收录</option>
+            <option value="name">按名称</option>
+          </select></div>
+          <fluent-button id="btn-mkt-search" appearance="accent">搜索</fluent-button>
+        </div>
+
+        <div class="plug-toolbar plug-toolbar--soft">
+          <label class="switch"><input type="checkbox" id="mkt-risk"><span class="track"></span><span>只看有风险提示的</span></label>
+          <fluent-button id="btn-mkt-refresh" appearance="subtle">重新拉取索引</fluent-button>
+        </div>
+
+        <div class="plug-mktinfo"><span class="sub" id="mkt-info">（还没读索引）</span></div>
+        <div class="cards" id="mkt-cards"></div>
+        <div class="row" id="mkt-pager"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 操作日志（折叠） ---------- -->
+    <details class="more plug-logbox" id="plug-logbox">
+      <summary>操作日志</summary>
+      <div class="grid" id="plug-job"></div>
+      <pre id="plug-log">（还没有插件操作）</pre>
+    </details>
+
+    <div class="overlay" id="plug-detail" hidden><div class="card pv"><div id="pd-body"></div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="btn-pd-close">关闭</button></div></div></div>
+  </section>

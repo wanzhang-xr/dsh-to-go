@@ -356,6 +356,21 @@ dsh 当场报 `ValidationError: $.providers.<站点>.models[0].contextWindow exp
 
 ## 6. 风险与回退
 
+- **升级空等**：npm 官方源在部分网络下「连得上但不回包」，以前 `spawnSync` 要等 30 分钟才换镜像。
+  现在装之前先用 4 秒探一次可达性，不通的源直接跳过（仍会试一次，但只等 2 分钟）；源可在升级页里选
+  （自动 / 官方 / 镜像 / 自定义），偏好存 `data\npm-source.json`。
+- **升级前的备份**：打包 `data/` 时**排除 `.webview`**（WebView2 的用户数据；运行中的浏览器会锁住
+  `lockfile`，Compress-Archive 会直接失败）。备份失败不再阻断升级，只提示「这次没有降级备份」。
+- **切槽的前置条件**：目标槽没装 dsh、或 dsh 正在运行，都属于「先满足条件」，接口返回 **409** 并给出原话；
+  服务器真的出错才是 500。
+
+- **启动器起不来**：`dsh-ui.cmd` 是永远可用的回退路径（启动器在缺 .NET/WebView2 时会自动改走它）；
+  启动器自己的日志在 `data\logs\launcher.log`（只记令牌长度，不记令牌）。
+- **启动器被强杀**：壳把 pid 交给 ui-server（`DSH_LAUNCHER_PID`），壳一死 ui-server 3 秒内自退，不留孤儿服务；
+  dsh 不跟着死（等价于「关窗时选择后台继续」）。
+- **页面视觉回归**：`ui\app.html` 是 `src\` 的生成物，改完必须跑 `tools\ui-build.js` + `tests\page-check.js`；
+  内联的 Fluent bundle 用 `/*{{FLUENT_BUNDLE_BEGIN}}*/` 圈起来，zero-external-link 检查不计其内部注释。
+
 - **装到一半拔盘**：任务状态在 `data\jobs\` 里，重开后可见失败原因；指针未切换即等于没升级。
 - **覆盖层写坏**：每次写前备份到 `backups\overlay-<时间>.yml`，并提供「回滚到上一个覆盖层」。
 - **口令遗忘**：无法找回（这是设计目标）；界面明确提示，并允许「删除全部密钥重设」。

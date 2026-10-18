@@ -1,0 +1,139 @@
+  <!-- ============================================ 概览 -->
+  <style>
+    /* ---- 概览分区样式（全部以 #tab-overview 开头，作用域隔离，不污染其它分区） ---- */
+    #tab-overview{display:flex;flex-direction:column;gap:12px}
+    /* 标签页用 section[hidden] 切换：ID 优先级会压过 section[hidden]{display:none}，必须显式补回 */
+    #tab-overview[hidden]{display:none}
+    /* 宽窗口排两列：卡片不再被拉成"左边一堆字、右边一片空" */
+    @media (min-width:1200px){
+      #tab-overview{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+      #tab-overview > .card{margin-bottom:0;min-width:0}
+      /* 尾部两张（密钥与站点、最近任务）整行铺开；注意 <style> 也算子元素，所以用 nth-last-child */
+      #tab-overview > .card:nth-last-child(1), #tab-overview > .card:nth-last-child(2){grid-column:1 / -1}
+    }
+    #tab-overview .card{margin-bottom:0;border-radius:var(--borderRadiusXLarge);padding:16px 18px;
+      transition:border-color var(--t-fast) var(--e-out),background var(--t-fast) var(--e-out)}
+    #tab-overview .card > h2{display:flex;align-items:center;gap:8px;margin:0 0 12px;
+      font-size:var(--fontSizeBase300);font-weight:600;color:var(--colorNeutralForeground2);letter-spacing:.01em}
+    #tab-overview .card > h2 fluent-badge{margin-left:auto;font-weight:400}
+
+    /* ---- 主卡：dsh 状态（页面的主操作，视觉权重最高） ---- */
+    #tab-overview .ov-hero{border-color:var(--colorNeutralStroke2);padding:20px 22px;box-shadow:var(--shadow4);
+      background:linear-gradient(180deg,rgba(17,94,163,.14),rgba(17,94,163,0) 96px),var(--colorNeutralBackground1)}
+    #tab-overview .ov-hero > h2{margin-bottom:14px;font-size:var(--fontSizeBase400);color:var(--colorNeutralForeground1)}
+    #tab-overview .ov-hero .grid{border-bottom:1px solid var(--colorNeutralStroke3);padding-bottom:14px}
+
+    /* ---- 状态行：标签压低、数值放大，一眼看出运行/停止 ---- */
+    #tab-overview .grid{grid-template-columns:112px 1fr;gap:9px 16px;align-items:center}
+    #tab-overview .grid > div:nth-child(odd){font-size:var(--fontSizeBase200);color:var(--colorNeutralForeground3)}
+    #tab-overview .grid > div:nth-child(even){font-size:13px;color:var(--colorNeutralForeground1);line-height:20px}
+    #tab-overview .ov-hero #ov-dsh > div:nth-child(2){font-size:var(--fontSizeBase400);font-weight:600}
+    #tab-overview .ov-hero .pill{padding:3px 12px;font-size:12.5px;font-weight:600;border-color:var(--colorNeutralStroke2)}
+
+    /* ---- 动作区：主按钮独占左侧，次级动作收进右侧一组 ---- */
+    #tab-overview .ov-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+      margin-top:16px;padding-top:14px;border-top:1px solid var(--colorNeutralStroke3)}
+    #tab-overview .ov-actions .btn{min-height:34px;padding:6px 14px;font-size:13px;border-radius:var(--borderRadiusMedium)}
+    #tab-overview .ov-actions .ov-primary{min-height:38px;padding:8px 18px;font-size:13.5px;
+      background:var(--colorBrandBackground);border-color:var(--colorBrandBackground)}
+    #tab-overview .ov-actions .ov-primary:hover{background:var(--colorBrandBackgroundHover);
+      border-color:var(--colorBrandBackgroundHover);filter:none}
+    #tab-overview .ov-ghost{background:transparent;border-color:var(--colorNeutralStroke2);color:var(--colorNeutralForeground2)}
+    #tab-overview .ov-ghost:hover{background:var(--colorNeutralBackground2);color:var(--colorNeutralForeground1)}
+    #tab-overview .ov-sep{width:1px;height:24px;background:var(--colorNeutralStroke3);margin:0 4px}
+    #tab-overview .ov-hint{font-size:var(--fontSizeBase200);color:var(--colorNeutralForeground4);
+      padding:3px 8px;border-radius:var(--borderRadiusMedium);background:var(--colorNeutralBackground2)}
+    #tab-overview #btn-dsh-open:not([disabled]) ~ .ov-hint{display:none}
+    #tab-overview #ov-lock-note{flex:1 1 100%;font-size:var(--fontSizeBase200);line-height:18px}
+
+    /* ---- 次级卡：槽位/环境/密钥/任务，弱化到「信息面板」层级 ---- */
+    #tab-overview .ov-quiet{background:var(--colorNeutralBackground2);border-color:var(--colorNeutralStroke3);padding:14px 16px}
+    #tab-overview .ov-quiet > h2{color:var(--colorNeutralForeground3)}
+    #tab-overview .ov-mid{border-color:var(--colorNeutralStroke3)}
+
+    /* ---- 空状态：虚线占位 + 一句说明，grid 有数据后自动消失 ---- */
+    #tab-overview .ov-empty{border:1px dashed var(--colorNeutralStroke2);border-radius:var(--borderRadiusMedium);
+      background:rgba(255,255,255,.02);padding:14px 16px;text-align:center}
+    #tab-overview .ov-empty-t{font-size:13px;color:var(--colorNeutralForeground2);margin-bottom:4px}
+    #tab-overview .ov-empty-s{font-size:var(--fontSizeBase200);color:var(--colorNeutralForeground4);line-height:18px}
+    #tab-overview .grid:not(:empty) + .ov-empty{display:none}
+    #tab-overview #ov-jobs{font-size:var(--fontSizeBase200);color:var(--colorNeutralForeground3)}
+
+    /* ---- 首次引导：提示条样式，与主体卡片区分 ---- */
+    #tab-overview #wizard{border-color:var(--colorBrandStroke1);background:var(--colorNeutralBackground2);
+      box-shadow:inset 3px 0 0 0 var(--colorBrandStroke1)}
+    #tab-overview #wizard > h2{color:var(--colorNeutralForeground1)}
+    #tab-overview #wizard #btn-wz-install{background:var(--colorBrandBackground);border-color:var(--colorBrandBackground)}
+    #tab-overview #btn-wz-install:hover{background:var(--colorBrandBackgroundHover);
+      border-color:var(--colorBrandBackgroundHover);filter:none}
+
+    @media (max-width:640px){
+      #tab-overview .grid{grid-template-columns:1fr;gap:2px 0}
+      #tab-overview .grid > div:nth-child(even){margin-bottom:8px}
+    }
+  </style>
+
+  <section id="tab-overview" role="tabpanel">
+    <div class="card" id="wizard" hidden>
+      <h2>首次使用引导</h2>
+      <p class="sub">三步走完就能用，版本从列表里选（不用记版本号）。</p>
+      <div class="steps" id="wz-steps">
+        <span data-w="1">1 站点与密钥</span>
+        <span data-w="2">2 选择版本安装</span>
+        <span data-w="3">3 启动 dsh</span>
+      </div>
+      <div class="row">
+        <div class="f"><label for="wz-ver">要安装的版本</label><select id="wz-ver"></select></div>
+        <button class="btn primary" id="btn-wz-install">安装到空闲槽</button>
+        <button class="btn" id="btn-wz-site">去配站点与密钥</button>
+      </div>
+      <div class="sub" id="wz-note" style="margin-top:6px"></div>
+      <div class="flash" id="wz-out"></div>
+    </div>
+
+    <div class="card ov-hero">
+      <h2>dsh 状态<fluent-badge appearance="accent" size="small">主操作</fluent-badge></h2>
+      <div class="grid" id="ov-dsh"></div>
+      <div class="row ov-actions">
+        <button class="btn primary ov-primary" id="btn-dsh-start">启动 dsh</button>
+        <span class="ov-sep" aria-hidden="true"></span>
+        <button class="btn ov-ghost" id="btn-dsh-stop">停止</button>
+        <button class="btn ov-ghost" id="btn-dsh-open" disabled>打开 dsh 界面</button>
+        <span class="ov-hint">dsh 运行后可用</span>
+        <span class="sub" id="ov-lock-note"></span>
+      </div>
+      <div class="flash" id="ov-dsh-out"></div>
+    </div>
+
+    <div class="card ov-mid">
+      <h2>槽位（A/B 双槽）</h2>
+      <div class="grid" id="ov-slots"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ov-ghost" id="btn-switch">切到另一个槽（秒级回滚）</button>
+      </div>
+      <div class="flash" id="ov-slot-out"></div>
+    </div>
+
+<div class="card ov-quiet">
+      <h2>环境与占用<fluent-badge appearance="outline" size="small">只读</fluent-badge></h2>
+      <div class="grid" id="ov-env"></div>
+      <div class="ov-empty">
+        <div class="ov-empty-t">还没有读到环境信息</div>
+        <div class="ov-empty-s">状态读取完成后，这里会显示便携 Node、代码层与数据占用、磁盘剩余和路径。</div>
+      </div>
+    </div>
+
+    <div class="card ov-quiet">
+      <h2>密钥与站点<fluent-badge appearance="outline" size="small">只读</fluent-badge></h2>
+      <div class="grid" id="ov-key"></div>
+      <div class="ov-empty">
+        <div class="ov-empty-t">还没有读到密钥与站点</div>
+        <div class="ov-empty-s">状态读取完成后，这里会显示密钥库是否已配置、站点列表和默认模型。</div>
+      </div>
+    </div>
+
+    <div class="card ov-quiet">
+      <h2>最近任务</h2>
+      <div id="ov-jobs" class="sub">（无）</div>
+    </div>
+  </section>

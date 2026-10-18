@@ -12,3 +12,10 @@ VERSION.txt
 # 临时/调试
 tmp/
 *.log
+
+# 启动器产物（由 build.cmd 现场编译，不进仓库）
+dsh-to-go.exe
+tools/launcher/obj/
+
+# 规格与棒次（本地跟踪，不进仓库）
+.scratch/

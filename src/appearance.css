@@ -1,0 +1,196 @@
+/* ===========================================================================
+   外观层（src/appearance.css）
+   1) 流体渐变背景（可关）
+   2) 主色 / 动效强度（可切换，存 data/ui-prefs.json）
+   3) 全局过渡与微动效（跟随"动效"设置）
+   =========================================================================== */
+
+/* ---------- 流体渐变背景：两块缓慢漂移的模糊色斑 ---------- */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: -40%;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+body::before {
+  background:
+    radial-gradient(46% 52% at 20% 24%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 68%),
+    radial-gradient(40% 46% at 80% 16%, color-mix(in srgb, var(--accent-2) 38%, transparent), transparent 70%),
+    radial-gradient(34% 40% at 50% 50%, color-mix(in srgb, var(--accent-3) 22%, transparent), transparent 72%);
+  filter: blur(64px) saturate(125%);
+  opacity: .72;
+  animation: bg-float-a 26s ease-in-out infinite alternate;
+}
+body::after {
+  background:
+    radial-gradient(42% 48% at 72% 82%, color-mix(in srgb, var(--accent-3) 40%, transparent), transparent 70%),
+    radial-gradient(36% 42% at 22% 74%, color-mix(in srgb, var(--accent-2) 30%, transparent), transparent 72%);
+  filter: blur(72px) saturate(120%);
+  opacity: .62;
+  animation: bg-float-b 34s ease-in-out infinite alternate;
+}
+@keyframes bg-float-a {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.12); }
+}
+@keyframes bg-float-b {
+  from { transform: translate3d(2%, 1%, 0) scale(1.06); }
+  to   { transform: translate3d(-3%, -2%, 0) scale(1); }
+}
+/* 内容必须在色斑之上 */
+header, nav, main { position: relative; z-index: 1; }
+
+/* 背景关掉时只剩纯色 */
+html[data-bg="solid"] body::before,
+html[data-bg="solid"] body::after { display: none; }
+
+/* ---------- 主色预设（只换令牌，不动组件样式） ---------- */
+:root {
+  --accent: #22C55E; --on-accent: #0F172A;
+  --accent-2: #6366F1; --accent-3: #06B6D4;
+}
+html[data-theme="light"] {
+  --accent: #15803D; --on-accent: #FFFFFF;
+  --accent-2: #4F46E5; --accent-3: #0E7490;
+}
+html[data-accent="green"]  { --accent: #22C55E; --accent-2: #6366F1; --accent-3: #06B6D4; --on-accent: #0F172A; }
+html[data-accent="blue"]   { --accent: #3B82F6; --accent-2: #06B6D4; --accent-3: #8B5CF6; --on-accent: #04121F; }
+html[data-accent="purple"] { --accent: #A855F7; --accent-2: #6366F1; --accent-3: #EC4899; --on-accent: #12061F; }
+html[data-accent="orange"] { --accent: #F59E0B; --accent-2: #EF4444; --accent-3: #F97316; --on-accent: #1B0F02; }
+html[data-accent="cyan"]   { --accent: #06B6D4; --accent-2: #22C55E; --accent-3: #3B82F6; --on-accent: #03151A; }
+html[data-theme="light"][data-accent="green"]  { --accent: #15803D; --on-accent: #FFFFFF; }
+html[data-theme="light"][data-accent="blue"]   { --accent: #1D4ED8; --on-accent: #FFFFFF; }
+html[data-theme="light"][data-accent="purple"] { --accent: #7E22CE; --on-accent: #FFFFFF; }
+html[data-theme="light"][data-accent="orange"] { --accent: #B45309; --on-accent: #FFFFFF; }
+html[data-theme="light"][data-accent="cyan"]   { --accent: #0E7490; --on-accent: #FFFFFF; }
+
+/* ---------- 主题切换本身也做过渡（换肤不要"啪"地跳） ---------- */
+html, body, header, nav, .card, input, select, textarea, .btn, .pill, th, td, pre, code {
+  transition: background-color 220ms cubic-bezier(.22,.61,.36,1),
+              border-color 220ms cubic-bezier(.22,.61,.36,1),
+              color 220ms cubic-bezier(.22,.61,.36,1);
+}
+
+/* ---------- 把过渡补齐：按钮 / 输入 / 标签 / 行 / 折叠 ---------- */
+.btn {
+  transition: background-color 140ms cubic-bezier(.22,.61,.36,1),
+              border-color 140ms cubic-bezier(.22,.61,.36,1),
+              color 140ms cubic-bezier(.22,.61,.36,1),
+              box-shadow 180ms cubic-bezier(.22,.61,.36,1),
+              transform 140ms cubic-bezier(.22,.61,.36,1);
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.btn:active:not(:disabled) { transform: translateY(0) scale(.985); box-shadow: none; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+input, select, textarea {
+  transition: border-color 140ms cubic-bezier(.22,.61,.36,1),
+              box-shadow 160ms cubic-bezier(.22,.61,.36,1),
+              background-color 140ms cubic-bezier(.22,.61,.36,1);
+}
+input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled) { border-color: var(--secondary); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+nav button {
+  position: relative;
+  transition: color 140ms, background-color 140ms, border-color 140ms;
+}
+nav button::after {
+  content: '';
+  position: absolute;
+  left: 14px; right: 14px; bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms cubic-bezier(.22,.61,.36,1);
+}
+nav button[aria-selected="true"]::after { transform: scaleX(1); }
+
+.pill { transition: color 180ms, border-color 180ms, background-color 180ms, box-shadow 180ms; }
+.pill:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+
+.card {
+  transition: border-color 180ms, background-color 180ms, box-shadow 220ms, transform 220ms;
+}
+.card:hover { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); box-shadow: 0 8px 26px rgba(0,0,0,.16); }
+
+th, td { transition: background-color 140ms; }
+tbody tr { transition: background-color 140ms; }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+details > summary { cursor: pointer; transition: color 140ms; }
+details > summary:hover { color: var(--accent); }
+details[open] > .body { animation: unfold 200ms cubic-bezier(.22,.61,.36,1) both; }
+@keyframes unfold { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* 分区切换与卡片进入：略微错开，避免所有卡片同时出现 */
+main section:not([hidden]) { animation: rise 240ms cubic-bezier(.22,.61,.36,1) both; }
+main section:not([hidden]) > .card { animation: rise 260ms cubic-bezier(.22,.61,.36,1) both; }
+main section:not([hidden]) > .card:nth-child(2) { animation-delay: 40ms; }
+main section:not([hidden]) > .card:nth-child(3) { animation-delay: 80ms; }
+main section:not([hidden]) > .card:nth-child(4) { animation-delay: 110ms; }
+main section:not([hidden]) > .card:nth-child(5) { animation-delay: 140ms; }
+
+/* 进度/骨架类：给一点呼吸感 */
+.dot.on { animation: dot-breathe 2.4s ease-in-out infinite; }
+@keyframes dot-breathe { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+/* ---------- 动效强度 ---------- */
+html[data-motion="calm"] body::before,
+html[data-motion="calm"] body::after { animation-duration: 60s; opacity: .3; }
+html[data-motion="calm"] .card:hover { transform: none; box-shadow: none; }
+
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+html[data-motion="off"] body::before,
+html[data-motion="off"] body::after { display: none; }
+
+/* 系统级"减少动态效果"优先 */
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { animation: none !important; }
+  * { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}
+
+/* ---------- 玻璃层：让背景色斑"透"到每个元素上 ---------- */
+html { background: var(--bg); }
+body { background: transparent; }
+
+header {
+  background: color-mix(in srgb, var(--card) 68%, transparent) !important;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+nav {
+  background: color-mix(in srgb, var(--card-2) 62%, transparent) !important;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+.card, .pcard, .up-adv, #banner {
+  background: color-mix(in srgb, var(--card) 76%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+}
+/* 嵌套卡片（任务项、站点行）也一起玻璃化，但更薄一点，避免层层叠糊 */
+.site, .card .pcard, .card .card {
+  background: color-mix(in srgb, var(--card-2) 70%, transparent) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+/* 输入类保持高不透明度，保证可读性 */
+input, select, textarea, pre, code {
+  backdrop-filter: none;
+}
+input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transparent) !important; }

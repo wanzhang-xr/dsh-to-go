@@ -382,6 +382,7 @@ function runJob(id) {
       DSH_HOME: DATA,
       DSH_AGENTS_HOME: path.join(DATA, 'agents'),
       npm_config_cache: path.join(RUNTIME, 'npm-cache'),
+      ...require('./npmrc.js').apply({}),
     });
     const env = meta.kind === 'plugin-pnpm' ? require('./plugins.js').pnpmEnv(baseEnv, (meta.opts && meta.opts.profile) || 'web') : baseEnv;
     child = spawn(cmd[0], cmd.slice(1), {

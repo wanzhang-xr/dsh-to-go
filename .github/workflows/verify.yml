@@ -1,0 +1,35 @@
+name: verify
+
+# 每次 push / PR 都跑一遍"能过门槛"的那几条：
+#   - ui/app.html 与 src/ 一致（改了 src 忘记重新生成 → 红）
+#   - 页面零外链 + 既有 UI 约定在位
+#   - 便携性/许可证守卫
+#   - 单元测试
+# 启动器（C#/WebView2）与 e2e 不在这里跑：需要 Windows 桌面会话与 WebView2 运行时，放在本机验收。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 产物与 src 一致
+        run: node tools/ui-build.js --check
+
+      - name: 页面核查（零外链 / UI 约定）
+        run: node tests/page-check.js
+
+      - name: 便携性与许可证守卫
+        run: node tests/portability-audit.js
+
+      - name: 单元测试
+        run: node tests/run-all.js

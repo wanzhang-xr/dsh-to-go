@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const npmsrc = require('./npmsrc.js');
 
 const ROOT = process.env.WZD_ROOT || path.resolve(__dirname, '..');
 const RUNTIME = path.join(ROOT, 'runtime');
@@ -100,11 +101,13 @@ function writeSlotPackage(name, spec) {
 function npmInstall(name, registries) {
   const t0 = Date.now();
   for (const reg of registries) {
-    say('安装到 ' + name + ' ← ' + reg.label + '（第一次要几分钟，请勿关窗）');
+    const tmo = reg.probed === false ? 120000 : 600000;
+    say('安装到 ' + name + ' ← ' + reg.label + '（第一次要几分钟，请勿关窗；单次最多等 ' + Math.round(tmo / 60000) + ' 分钟）');
     const r = run(NODE_EXE, [NPM_CLI, 'install',
       '--cache=' + CACHE,
       '--registry=' + reg.url,
-      '--no-audit', '--no-fund', '--loglevel=error'], { cwd: slotDir(name), timeout: 1800000 });
+      '--fetch-timeout=60000', '--fetch-retries=1', '--fetch-retry-mintimeout=2000',
+      '--no-audit', '--no-fund', '--loglevel=error'], { cwd: slotDir(name), timeout: tmo, env: require('./npmrc.js').env() });
     if (r.status === 0) {
       const secs = Math.round((Date.now() - t0) / 1000);
       say('完成：' + name + ' ← dsh ' + installedVersion(name) + '（' + secs + ' 秒）');
@@ -117,7 +120,7 @@ function npmInstall(name, registries) {
 }
 
 // ------------------------------------------------------------------ 主流程
-function main() {
+async function main() {
   const opt = parseArgs(process.argv.slice(2));
   console.log('');
   console.log('  ── dsh-to-go 构建 ──');
@@ -140,8 +143,10 @@ function main() {
   fs.mkdirSync(CACHE, { recursive: true });
 
   const registries = opt.registry
-    ? [{ url: opt.registry, label: opt.registry }]
-    : NPM_MIRRORS;
+    ? [{ url: opt.registry, label: '自定义源 ' + opt.registry }]
+    : npmsrc.list();
+  say('源偏好：' + npmsrc.read().mode + '（' + registries.map((r) => r.label).join(' → ') + '）');
+  const liveRegistries = await npmsrc.order(registries, (m) => console.log(m));
 
   const plan = opt.slot
     ? [[opt.slot, opt.version || opt.a]]
@@ -150,7 +155,7 @@ function main() {
     console.log('');
     say('槽 ' + name + ' ← 目标版本 ' + spec);
     writeSlotPackage(name, spec);
-    if (!npmInstall(name, registries)) {
+    if (!npmInstall(name, liveRegistries)) {
       console.log('');
       say('安装失败。可换源重试：node tools\\install.js --registry https://registry.npmmirror.com');
       return 1;
@@ -208,4 +213,4 @@ function main() {
   return 0;
 }
 
-process.exit(main());
+main().then((rc) => process.exit(rc)).catch((e) => { console.error(String(e && e.stack || e)); process.exit(1); });

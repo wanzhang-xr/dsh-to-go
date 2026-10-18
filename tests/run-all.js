@@ -4,7 +4,9 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const NODE = path.join(ROOT, 'runtime', 'node', 'node.exe');
+const PORTABLE_NODE = path.join(ROOT, 'runtime', 'node', 'node.exe');
+// 盘里有便携 node 就用它（跑的就是交付时的那一版）；CI/开发机上没有就用当前 node
+const NODE = fs.existsSync(PORTABLE_NODE) ? PORTABLE_NODE : process.execPath;
 const DIR = path.join(ROOT, 'tests');
 const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.test.js')).sort().map((f) => path.join(DIR, f));
 

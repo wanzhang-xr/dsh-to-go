@@ -1,0 +1,176 @@
+  <!-- ============================================ 升级 -->
+  <section id="tab-upgrade" role="tabpanel" hidden>
+    <style>
+      /* 升级分区专属样式（选择器一律以 #tab-upgrade 开头，不外溢） */
+      #tab-upgrade .up-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+      }
+      #tab-upgrade .up-head h2 { margin-bottom: 4px; }
+      #tab-upgrade .up-head .sub { margin: 0; max-width: 62ch; }
+      /* 三段流程：当前这一步高亮，一眼看出现在该做什么 */
+      #tab-upgrade .up-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      #tab-upgrade .up-step {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 3px 10px 3px 3px; border-radius: 999px;
+        background: var(--colorNeutralBackground2); border: 1px solid var(--colorNeutralStroke2);
+        color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); white-space: nowrap;
+      }
+      #tab-upgrade .up-step b {
+        width: 18px; height: 18px; border-radius: 50%; font-size: 11px; font-weight: 600;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground2);
+      }
+      #tab-upgrade .up-step.now { border-color: var(--colorBrandStroke1); color: var(--colorNeutralForeground1); }
+      #tab-upgrade .up-step.now b { background: var(--colorBrandBackground); color: var(--colorNeutralForegroundOnBrand); }
+      #tab-upgrade .up-arrow { color: var(--colorNeutralForeground4); font-size: 12px; }
+
+      /* 目标版本 + 动作：主操作独占一行视觉权重 */
+      #tab-upgrade .up-target { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+      #tab-upgrade .up-target .f { flex: 1 1 300px; min-width: 220px; }
+      #tab-upgrade .up-target .f select { width: 100%; }
+      #tab-upgrade .up-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      #tab-upgrade .up-note {
+        margin-top: 8px; min-height: 16px;
+        color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); line-height: 1.5;
+      }
+      #tab-upgrade .up-meta {
+        margin-top: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
+      }
+      #tab-upgrade .up-meta code {
+        background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke2);
+        border-radius: 4px; padding: 0 5px; font-size: var(--fontSizeBase200);
+      }
+
+      /* 分区标题 + 分级徽标 */
+      #tab-upgrade .up-sec { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+      #tab-upgrade .up-sec h2 { margin-bottom: 0; }
+
+      /* 进阶区：整体降一档视觉权重，避免和「快速升级」抢注意力 */
+      #tab-upgrade .up-adv { background: var(--colorNeutralBackground2); box-shadow: none; }
+      #tab-upgrade .up-adv .sub { margin: 0 0 4px; }
+      #tab-upgrade .up-warn { display: block; margin-top: 12px; }
+
+      /* 任务状态：主视图只留状态与动作 */
+      #tab-upgrade .up-status { gap: 8px 14px; }
+      #tab-upgrade .up-log-rule { margin: 18px 0 4px; }
+      #tab-upgrade .up-job-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+      #tab-upgrade fluent-button.up-danger::part(control) {
+        color: var(--colorStatusDangerForeground1);
+        border-color: var(--colorStatusDangerBorder1, var(--colorStatusDangerForeground1));
+      }
+      #tab-upgrade fluent-button.up-danger::part(control):hover {
+        background: var(--colorStatusDangerBackground1, var(--colorNeutralBackground2));
+      }
+
+      /* 日志：默认折叠，展开后限高滚动 */
+      #tab-upgrade .up-log { margin-top: 12px; }
+      #tab-upgrade .up-log fluent-accordion-item { background: transparent; }
+      #tab-upgrade .up-log pre#job-log {
+        max-height: 280px; overflow: auto; margin: 8px 0 0; padding: 10px 12px;
+        background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke2);
+        border-radius: 6px; font-size: var(--fontSizeBase200); line-height: 1.55;
+        color: var(--colorNeutralForeground2); white-space: pre-wrap; word-break: break-word;
+      }
+    </style>
+
+    <!-- ① 主路径：目标版本 → 装到空闲槽 -->
+    <div class="card up-main">
+      <div class="up-head">
+        <div>
+          <h2>快速升级</h2>
+          <p class="sub">流程：装到空闲槽 → 启动检查 → 才切换指针。装失败指针不动，旧版本继续可用。</p>
+        </div>
+        <div class="up-steps" aria-label="升级流程">
+          <span class="up-step now"><b>1</b>装到空闲槽</span>
+          <span class="up-arrow">›</span>
+          <span class="up-step"><b>2</b>启动检查</span>
+          <span class="up-arrow">›</span>
+          <span class="up-step"><b>3</b>切换指针</span>
+        </div>
+      </div>
+
+      <div class="up-target">
+        <div class="f"><label for="u-ver">目标版本（从列表里选）</label><select id="u-ver"></select></div>
+        <div class="up-acts">
+          <fluent-button id="btn-upgrade" appearance="accent">开始升级</fluent-button>
+          <fluent-button id="btn-ver-refresh" appearance="neutral">刷新列表</fluent-button>
+          <fluent-button id="btn-ver-manual" appearance="subtle">手动填版本</fluent-button>
+        </div>
+      </div>
+
+      <div class="row" id="u-ver-manual-box" hidden>
+        <div class="f"><label for="u-ver-raw">手动输入版本号</label><input id="u-ver-raw" placeholder="0.2.1-alpha.2"></div>
+      </div>
+
+      <div class="up-note" id="u-ver-note" style="margin-top:6px"></div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="f">
+          <label for="npm-src-mode">下载源</label>
+          <select id="npm-src-mode">
+            <option value="auto">自动（官方源 → 镜像）</option>
+            <option value="official">只走官方源</option>
+            <option value="mirror">只走镜像（国内网络推荐）</option>
+            <option value="custom">自定义地址…</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="npm-src-url">自定义地址（选「自定义」时填）</label>
+          <input id="npm-src-url" placeholder="https://registry.example.com">
+        </div>
+        <button class="btn" id="btn-npm-src-save" type="button">保存源</button>
+      </div>
+      <div class="sub" style="margin-top:4px">安装前会先探一次可达性：连不上的源直接跳过，不会再把窗口空等半小时。</div>
+      <div class="flash" id="npm-src-out"></div>
+
+      <div class="up-meta">
+        当前活动槽 / 空闲槽及各自版本：见页头状态条，或「概览 → 槽位」。
+        <span>升级只写空闲槽，不会动活动槽。</span>
+      </div>
+
+      <div class="flash" id="up-out"></div>
+    </div>
+
+    <!-- ② 进阶路径：显式指定槽位（信息层级降一档） -->
+    <div class="card up-adv wide">
+      <div class="up-sec">
+        <h2>单独指定槽位版本</h2>
+        <fluent-badge appearance="warning" size="small">进阶</fluent-badge>
+      </div>
+      <p class="sub">平时不需要用它：上面的「快速升级」会自己挑空闲槽。只有要把某个槽单独铺成指定版本时才用。</p>
+      <div class="up-target">
+        <div class="f"><label for="i-slot">槽位</label>
+          <select id="i-slot"><option value="agent-A">agent-A</option><option value="agent-B">agent-B</option></select>
+        </div>
+        <div class="f"><label for="i-ver">要装的版本（从列表里选）</label><select id="i-ver"></select></div>
+        <div class="up-acts">
+          <fluent-button id="btn-install-slot" appearance="outline">安装到该槽</fluent-button>
+        </div>
+      </div>
+      <fluent-message-bar class="up-warn" intent="warning" layout="single-line">选到活动槽（页头显示的那个）风险更高：装坏会直接影响当前运行的 dsh。只想升级请用上面的「快速升级」。</fluent-message-bar>
+      <div class="flash" id="install-out"></div>
+    </div>
+
+    <!-- ③ 任务：主视图 = 状态 + 动作；日志默认收起 -->
+    <div class="card up-job">
+      <div class="up-sec">
+        <h2>任务进度</h2>
+      </div>
+      <div class="grid up-status" id="job-state"></div>
+      <div class="up-job-foot">
+        <fluent-button id="btn-job-history" appearance="neutral">刷新任务列表</fluent-button>
+        <fluent-button id="btn-job-cancel" appearance="outline" class="up-danger">取消当前任务</fluent-button>
+      </div>
+      <div class="flash" id="job-out"></div>
+
+      <fluent-divider class="up-log-rule"></fluent-divider>
+      <fluent-accordion class="up-log">
+        <fluent-accordion-item>
+          <span slot="heading">日志（增量刷新）</span>
+          <pre id="job-log">（还没有任务）</pre>
+        </fluent-accordion-item>
+      </fluent-accordion>
+    </div>
+  </section>

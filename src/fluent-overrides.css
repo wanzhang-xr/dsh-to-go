@@ -1,0 +1,359 @@
+/* ===========================================================================
+   Fluent 2 覆盖层（src/fluent-overrides.css）
+   目标：在不改结构的前提下，把整页视觉拉到 Fluent 2（深色），
+   并给已经换成 Fluent Web Components 的控件补上颜色映射。
+
+   顺序：legacy.css → fluent-theme.css → 本文件。
+   所以这里既做「令牌重映射」，也做「组件外观微调」。
+   =========================================================================== */
+
+:root {
+  /* ---- Fluent 2 深色令牌（官方 webDarkTheme 的取值）---- */
+  --colorNeutralBackground1: #292929;
+  --colorNeutralBackground2: #1f1f1f;
+  --colorNeutralBackground3: #141414;
+  --colorNeutralBackground4: #0a0a0a;
+  --colorNeutralForeground1: #ffffff;
+  --colorNeutralForeground2: #d6d6d6;
+  --colorNeutralForeground3: #adadad;
+  --colorNeutralForeground4: #9a9a9a;
+  --colorNeutralStroke1: #666666;
+  --colorNeutralStroke2: #525252;
+  --colorNeutralStroke3: #3d3d3d;
+  --colorNeutralStrokeAccessible: #adadad;
+  --colorBrandBackground: #115ea3;
+  --colorBrandBackgroundHover: #0f6cbd;
+  --colorBrandForeground1: #479ef5;
+  --colorBrandStroke1: #479ef5;
+  --colorStatusSuccessForeground1: #54b054;
+  --colorStatusDangerForeground1: #ff99a4;
+  --colorStatusDangerBackground1: #3f1a1d;
+  --colorStatusWarningForeground1: #fce100;
+  --borderRadiusMedium: 4px;
+  --borderRadiusLarge: 6px;
+  --borderRadiusXLarge: 8px;
+  --fontFamilyBase: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+  --fontSizeBase200: 12px;
+  --fontSizeBase300: 14px;
+  --fontSizeBase400: 16px;
+  --lineHeightBase300: 20px;
+  --strokeWidthThin: 1px;
+  --shadow4: 0 2px 4px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+  --shadow16: 0 8px 16px rgba(0, 0, 0, .28), 0 0 8px rgba(0, 0, 0, .2);
+
+  /* ---- 把页面原有变量重映射到 Fluent 2，老样式自动跟着变 ---- */
+  --bg: var(--colorNeutralBackground3);
+  --card: var(--colorNeutralBackground1);
+  --card-2: var(--colorNeutralBackground2);
+  --primary: var(--colorNeutralBackground2);
+  --secondary: var(--colorNeutralStroke2);
+  --fg: var(--colorNeutralForeground1);
+  --muted: var(--colorNeutralForeground3);
+  --border: var(--colorNeutralStroke3);
+  --accent: var(--colorBrandForeground1);
+  --on-accent: #ffffff;
+  --danger: var(--colorStatusDangerForeground1);
+  --warn: var(--colorStatusWarningForeground1);
+  --code: #0a0a0a;
+  --r: var(--borderRadiusLarge);
+  --gap: 16px;
+  --t-fast: 100ms;
+  --t: 150ms;
+  --t-slow: 220ms;
+  --e-out: cubic-bezier(.33, 0, .67, 1);
+  --e-in: cubic-bezier(.33, 0, .67, 1);
+  --font-ui: var(--fontFamilyBase);
+}
+
+html, body { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); }
+
+/* ---------- 顶部栏：Fluent 的「命令栏」观感 ---------- */
+header {
+  background: var(--colorNeutralBackground2);
+  border-bottom: 1px solid var(--colorNeutralStroke3);
+  /* 顶栏＝标题栏：一条 44px 的横条，左侧应用信息、右侧操作与窗口按钮。
+     高度必须和 DshLauncher.cs 的 TitleBarHeight 一致。
+     这里必须 nowrap：否则窗口变窄时 legacy.css 的 flex-wrap:wrap 会让它折成两行。 */
+  padding: 0 0 0 14px;
+  gap: 12px;
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+header h1 {
+  font-size: var(--fontSizeBase400);
+  font-weight: 600;
+  letter-spacing: .1px;
+  gap: 10px;
+}
+header .app-mark { color: var(--colorBrandForeground1); flex: 0 0 auto; }
+header .app-title { color: var(--colorNeutralForeground1); }
+header h1 .sub { color: var(--colorNeutralForeground3); font-weight: 400; font-size: var(--fontSizeBase200); }
+header .hdr-actions { gap: 8px; }
+
+/* ---------- 分区导航：Fluent TabList（底部指示条）---------- */
+nav {
+  background: var(--colorNeutralBackground2);
+  border-bottom: 1px solid var(--colorNeutralStroke3);
+  padding: 0 16px;
+  gap: 4px;
+}
+nav button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 0;
+  padding: 10px 12px;
+  color: var(--colorNeutralForeground3);
+  font-weight: 400;
+  position: relative;
+  background: transparent;
+}
+nav button:hover { background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1); }
+nav button[aria-selected="true"] {
+  background: transparent;
+  border: 0;
+  color: var(--colorNeutralForeground1);
+  font-weight: 600;
+}
+nav button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12px; right: 12px; bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--colorBrandForeground1);
+}
+
+/* ---------- 卡片：Fluent Card（1px 描边 + 8px 圆角 + 轻微高度感）---------- */
+.card {
+  background: var(--colorNeutralBackground1);
+  border: 1px solid var(--colorNeutralStroke3);
+  border-radius: var(--borderRadiusXLarge);
+  padding: 16px;
+  box-shadow: var(--shadow4);
+}
+.card.tight { padding: 12px; }
+.card h2 { font-size: var(--fontSizeBase400); font-weight: 600; margin-bottom: 12px; }
+.card h3 { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); letter-spacing: .2px; text-transform: none; }
+
+/* ---------- 按钮：Fluent Button ---------- */
+.btn, .subtabs button {
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: var(--borderRadiusMedium);
+  border: 1px solid var(--colorNeutralStroke1);
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  font-weight: 600;
+  transition: background var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out);
+}
+.btn:hover { background: var(--colorNeutralBackground2); border-color: var(--colorNeutralStroke2); }
+.btn:active { background: var(--colorNeutralBackground3); }
+.btn.primary {
+  background: var(--colorBrandBackground);
+  border-color: var(--colorBrandBackground);
+  color: #fff;
+}
+.btn.primary:hover { background: var(--colorBrandBackgroundHover); border-color: var(--colorBrandBackgroundHover); }
+.btn.danger, .btn[data-danger="1"] { color: var(--colorStatusDangerForeground1); border-color: var(--colorStatusDangerForeground1); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ---------- 输入：Fluent 的 32px 高 + 4px 圆角 + 品牌色下划线聚焦 ---------- */
+input:not([type=checkbox]):not([type=radio]), select, textarea {
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: var(--borderRadiusMedium);
+  border: 1px solid var(--colorNeutralStroke1);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  transition: border-color var(--t-fast) var(--e-out);
+}
+input:hover, select:hover, textarea:hover { border-color: var(--colorNeutralStroke2); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--colorBrandStroke1);
+  box-shadow: inset 0 -2px 0 0 var(--colorBrandStroke1);
+}
+label { color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase200); }
+
+/* ---------- 状态胶囊 / 徽标 ---------- */
+.pill {
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--colorNeutralBackground1);
+  border: 1px solid var(--colorNeutralStroke3);
+  font-size: var(--fontSizeBase200);
+}
+
+/* ---------- 遮罩层：Fluent Dialog（居中、8px 圆角、深色投影）---------- */
+.overlay { background: rgba(0, 0, 0, .55); backdrop-filter: blur(2px); }
+.overlay > .card, .overlay > .pv {
+  border-radius: var(--borderRadiusXLarge);
+  box-shadow: var(--shadow16);
+  border-color: var(--colorNeutralStroke2);
+}
+
+/* ---------- 提示条：Fluent MessageBar ---------- */
+.flash.on {
+  border-radius: var(--borderRadiusMedium);
+  border: 1px solid var(--colorNeutralStroke2);
+  background: var(--colorNeutralBackground2);
+}
+.flash.on.err { border-color: var(--colorStatusDangerForeground1); color: var(--colorStatusDangerForeground1); }
+.flash.on.warn { border-color: var(--colorStatusWarningForeground1); color: var(--colorStatusWarningForeground1); }
+.flash.on.ok { border-color: var(--colorStatusSuccessForeground1); color: var(--colorStatusSuccessForeground1); }
+
+/* ---------- 骨架屏：Fluent 的微弱高光 ---------- */
+.skeleton {
+  background: linear-gradient(90deg, var(--colorNeutralBackground2) 25%, var(--colorNeutralBackground1) 37%, var(--colorNeutralBackground2) 63%);
+  background-size: 400% 100%;
+  border-radius: var(--borderRadiusMedium);
+}
+
+/* ---------- 已换成 Fluent Web Components 的地方：令牌直连 ---------- */
+fluent-button, fluent-text-field, fluent-textarea, fluent-select, fluent-checkbox,
+fluent-switch, fluent-tabs, fluent-tab, fluent-card, fluent-dialog, fluent-badge,
+fluent-progress-bar, fluent-spinner, fluent-tooltip, fluent-accordion, fluent-accordion-item {
+  --accent-fill-rest: var(--colorBrandBackground);
+  --accent-fill-hover: var(--colorBrandBackgroundHover);
+  --accent-foreground-rest: var(--colorBrandForeground1);
+  --neutral-foreground-rest: var(--colorNeutralForeground1);
+  --neutral-foreground-hint: var(--colorNeutralForeground3);
+  --neutral-fill-rest: var(--colorNeutralBackground1);
+  --neutral-fill-hover: var(--colorNeutralBackground2);
+  --neutral-fill-input-rest: var(--colorNeutralBackground1);
+  --neutral-stroke-rest: var(--colorNeutralStroke1);
+  --neutral-stroke-divider-rest: var(--colorNeutralStroke3);
+  --font-family: var(--fontFamilyBase);
+  --type-ramp-base-font-size: var(--fontSizeBase300);
+  --type-ramp-base-line-height: var(--lineHeightBase300);
+  --control-corner-radius: var(--borderRadiusMedium);
+}
+fluent-card { padding: 16px; background: var(--colorNeutralBackground1); }
+
+/* 徽标语义：只有主操作/需要强调的用品牌色，只读/中性信息用中性灰 */
+fluent-badge[appearance="outline"] {
+  --neutral-foreground-rest: var(--colorNeutralForeground3);
+  --neutral-stroke-rest: var(--colorNeutralStroke2);
+}
+fluent-badge[appearance="accent"] { --accent-foreground-rest: var(--colorBrandForeground1); }
+
+/* 空状态：图标 + 主文案 + 说明，比一行 (无) 清楚 */
+.ov-empty, .empty-state {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 14px 16px;
+  border: 1px dashed var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusLarge);
+  background: var(--colorNeutralBackground2);
+}
+.ov-empty-t, .empty-state-title { font-weight: 600; color: var(--colorNeutralForeground1); }
+.ov-empty-s, .empty-state-desc { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+
+/* 尊重系统设置（约定：这一行不许被当成补丁锚点删掉） */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* hidden 必须真的隐藏：老样式里 .btn{display:inline-flex} 这类规则会盖掉 UA 的 [hidden] */
+[hidden] { display: none !important; }
+
+
+/* ---- 浅色：官方 webLightTheme 取值，覆盖上面 :root 的深色令牌 ---- */
+html[data-theme="light"] {
+  --colorNeutralBackground1: #ffffff;
+  --colorNeutralBackground2: #fafafa;
+  --colorNeutralBackground3: #f5f5f5;
+  --colorNeutralBackground4: #f0f0f0;
+  --colorNeutralForeground1: #242424;
+  --colorNeutralForeground2: #424242;
+  --colorNeutralForeground3: #616161;
+  --colorNeutralForeground4: #707070;
+  --colorNeutralStroke1: #d1d1d1;
+  --colorNeutralStroke2: #e0e0e0;
+  --colorNeutralStroke3: #f0f0f0;
+  --colorNeutralStrokeAccessible: #616161;
+  --colorBrandBackground: #0f6cbd;
+  --colorBrandBackgroundHover: #115ea3;
+  --colorBrandForeground1: #0f6cbd;
+  --colorBrandStroke1: #0f6cbd;
+  --colorStatusSuccessForeground1: #0e700e;
+  --colorStatusDangerForeground1: #b10e1c;
+  --colorStatusDangerBackground1: #fdf3f4;
+  --colorStatusWarningForeground1: #bc4b09;
+}
+
+/* 解锁状态是「状态」不是「操作」：跟标题同排，做成小一号的 chip，
+   右侧 hdr-actions 里只剩按钮，避免药丸夹在按钮中间、大小还不一致。 */
+header h1 .pill {
+  font-size: var(--fontSizeBase200);
+  padding: 1px 8px;
+  margin-left: 2px;
+  color: var(--colorNeutralForeground3);
+}
+header h1 .pill.ok { color: var(--accent); }
+header .hdr-actions { align-items: center; }
+header .hdr-actions .btn { min-height: 32px; }
+
+/* ---- 窗口按钮（只在启动器宿主里显示）---- */
+header .hdr-actions { padding-right: 0; gap: 6px; }
+.tb-ctl { display: flex; height: 44px; margin: 0; }
+.tb-ctl[hidden] { display: none !important; }
+.tb-ctl { gap: 0; padding: 0; }
+.tb-ctl button {
+  width: 46px; height: 44px; display: grid; place-items: center;
+  border: 0; background: transparent; color: var(--colorNeutralForeground1);
+  cursor: default; padding: 0; border-radius: 0;
+}
+.tb-ctl button:hover { background: var(--colorNeutralBackground1); }
+.tb-ctl button:active { background: var(--colorNeutralBackground3); }
+.tb-ctl #tb-close:hover { background: #c42b1c; color: #fff; }
+.tb-ctl #tb-close:active { background: #a32219; }
+.tb-ctl #tb-close:active { background: #a32219; color: #fff; }
+.tb-ctl .i-restore { display: none; }
+.tb-ctl #tb-max[data-max="1"] .i-max { display: none; }
+.tb-ctl #tb-max[data-max="1"] .i-restore { display: block; }
+
+/* ---- 滚动条：细、圆角、跟随主题，不再用系统那条浅灰粗条 ---- */
+* { scrollbar-width: thin; scrollbar-color: var(--colorNeutralStroke2) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--colorNeutralStroke2);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--colorNeutralStroke1); background-clip: content-box; }
+::-webkit-scrollbar-thumb:active { background: var(--colorNeutralForeground4); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ---- 滚动容器 ----
+   让滚动条只出现在内容区：否则页面级滚动条会从标题栏右边一路贯穿上去，
+   顶栏里那三颗窗口按钮旁边就多出一根浅灰粗条（很难看）。
+   body 用纵向 flex：header / nav 固定，main 自己滚。 */
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; flex-direction: column; }
+header, nav { flex: 0 0 auto; }
+main { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; }
+/* 弹层（登录/任务详情）本来就 fixed，不受影响 */
+
+/* 布局自适应由各分区自己的 <style> 处理（它们的 ID 选择器优先级更高） */
+
+/* ---- 窗口变窄时不能"塌成两行" ----
+   1) 菜单栏：永远单行，放不下就横向滚动（不换行、不叠行）；
+   2) 顶栏：标题固定，说明文字可省略号截断，右侧按钮不放宽。 */
+nav { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+nav::-webkit-scrollbar { display: none; }
+nav button { flex: 0 0 auto; }
+header h1 { flex: 1 1 auto; min-width: 0; }
+header h1 .app-title { flex: 0 0 auto; }
+header h1 .sub { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header h1 .pill { flex: 0 0 auto; }
+header .hdr-actions { flex: 0 0 auto; }

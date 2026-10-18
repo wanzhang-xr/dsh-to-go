@@ -1,0 +1,71 @@
+  <!-- ============================================ 启动器（应用自身的外观与行为） -->
+  <style>
+    /* ---- 启动器分区样式（作用域隔离，不污染其它分区） ---- */
+    #tab-launcher { display: flex; flex-direction: column; gap: 12px; }
+    #tab-launcher[hidden] { display: none; }
+    #tab-launcher .card { margin-bottom: 0; }
+    #launcher-swatches { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    #launcher-swatches button {
+      width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent;
+      cursor: pointer; padding: 0; transition: transform 160ms cubic-bezier(.22,.61,.36,1),
+        border-color 160ms, box-shadow 160ms;
+    }
+    #launcher-swatches button:hover { transform: translateY(-2px) scale(1.06); }
+    #launcher-swatches button[aria-pressed="true"] {
+      border-color: var(--fg);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+  </style>
+
+  <section id="tab-launcher" role="tabpanel" hidden>
+    <div class="card">
+      <h2>外观<fluent-badge appearance="outline" size="small">跟随本盘</fluent-badge></h2>
+      <p class="sub">主题、背景与动效都只影响这个配置页；选择存 <code>data/ui-prefs.json</code>，换盘带走。</p>
+
+      <div class="row">
+        <div class="f">
+          <label for="ap-theme">主题</label>
+          <select id="ap-theme">
+            <option value="dark">深色</option>
+            <option value="light">浅色</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="ap-bg">背景</label>
+          <select id="ap-bg">
+            <option value="fluid">流体渐变</option>
+            <option value="solid">纯色</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="ap-motion">动效</label>
+          <select id="ap-motion">
+            <option value="full">完整</option>
+            <option value="calm">克制</option>
+            <option value="off">关闭</option>
+          </select>
+        </div>
+      </div>
+
+      <label>主色</label>
+      <div id="launcher-swatches" role="group" aria-label="主色">
+        <button type="button" data-accent="green"  aria-pressed="true"  style="background:#22C55E" aria-label="森林绿" title="森林绿"></button>
+        <button type="button" data-accent="blue"   aria-pressed="false" style="background:#3B82F6" aria-label="深海蓝" title="深海蓝"></button>
+        <button type="button" data-accent="purple" aria-pressed="false" style="background:#A855F7" aria-label="暮光紫" title="暮光紫"></button>
+        <button type="button" data-accent="orange" aria-pressed="false" style="background:#F59E0B" aria-label="琥珀橙" title="琥珀橙"></button>
+        <button type="button" data-accent="cyan"   aria-pressed="false" style="background:#06B6D4" aria-label="青碧" title="青碧"></button>
+      </div>
+
+      <div class="flash" id="ap-out"></div>
+    </div>
+
+    <div class="card">
+      <h2>窗口<fluent-badge appearance="outline" size="small">只读</fluent-badge></h2>
+      <div class="grid">
+        <div>标题栏</div><div>由页面自绘（可拖动、双击最大化）；右上是窗口按钮</div>
+        <div>缩放</div><div>窗口越宽，内容越放大；顶栏与菜单栏保持原尺寸</div>
+        <div>尺寸记忆</div><div>关窗时记住窗口大小与位置（<code>data/window.json</code>）</div>
+        <div>最小尺寸</div><div>960 × 660</div>
+      </div>
+    </div>
+  </section>

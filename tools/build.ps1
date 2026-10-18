@@ -116,6 +116,17 @@ if (Test-Path $NodeExe) {
   Say ('便携 Node 就绪：' + (& $NodeExe -v))
 }
 
+# ---- 3.6 启动器：用系统自带 csc.exe 编译 dsh-to-go.exe（失败不影响其它入口）----
+$launcherCmd = Join-Path $Target 'tools\launcher\build-launcher.cmd'
+if (Test-Path $launcherCmd) {
+  Write-Host ''
+  Write-Host '  [launcher] building native window entry (dsh-to-go.exe)...'
+  & cmd /c "`"$launcherCmd`""
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host '  [launcher] build failed - dsh-ui.cmd (browser entry) still works.'
+  }
+}
+
 # ---- 4. 默认交给图形向导；-Cli 才走命令行整套安装 ----
 if ($Cli) {
   $install = Join-Path $Target 'tools\install.js'

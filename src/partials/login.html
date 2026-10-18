@@ -1,0 +1,22 @@
+
+<!-- ============================================ 解锁 / 首次设置口令 -->
+<div class="overlay" id="login-ov" hidden>
+  <div class="card">
+    <h2 id="login-title">解锁配置页</h2>
+    <p class="sub" id="login-sub">口令只存在这个服务进程的内存里，退出即忘；它也用来加密站点密钥（所以请记牢，丢了无法找回）。</p>
+    <div id="login-first" hidden>
+      <div class="steps"><span class="on">1 设置口令</span><span>2 站点与模型</span><span>3 密钥</span><span>4 启动</span></div>
+    </div>
+    <label for="li-pass">口令</label>
+    <input id="li-pass" type="password" autocomplete="current-password">
+    <div id="li-pass2-box" hidden>
+      <label for="li-pass2">再输入一次（确认）</label>
+      <input id="li-pass2" type="password" autocomplete="new-password">
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="btn-login">解锁</button>
+      <button class="btn" id="btn-migrate" hidden>导入旧密钥文件</button>
+    </div>
+    <div class="flash" id="login-out"></div>
+  </div>
+</div>

@@ -1,0 +1,361 @@
+  <!-- ============================================ 诊断 -->
+  <section id="tab-diag" role="tabpanel" hidden>
+    <style>
+      /* 诊断分区：Fluent 2 观感（只作用于 #tab-diag） */
+      #tab-diag .card {
+        background: var(--colorNeutralBackground1, #1b1b1b);
+        border: 1px solid var(--colorNeutralStroke2, #3a3a3a);
+        border-radius: var(--borderRadiusLarge, 10px);
+        padding: 16px 18px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow2, 0 1px 2px rgba(0, 0, 0, .24));
+      }
+      #tab-diag .card h2 {
+        margin: 0;
+        font-size: 15px;
+        line-height: 22px;
+        font-weight: 600;
+        color: var(--colorNeutralForeground1, #f5f5f5);
+      }
+      #tab-diag .diag-card-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      #tab-diag .diag-hint {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--colorNeutralForeground3, #a6a6a6);
+      }
+      #tab-diag .diag-lead { margin: 0 0 12px; max-width: 78ch; line-height: 19px; }
+      #tab-diag .diag-group-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 16px 0 10px;
+        padding-top: 14px;
+        border-top: 1px solid var(--colorNeutralStroke3, #333);
+      }
+      #tab-diag .diag-group-head > .diag-group-title {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: .08em;
+        color: var(--colorBrandForeground1, #7ab7ff);
+      }
+
+      /* 检查区按钮 */
+      #tab-diag .diag-actions { margin-bottom: 4px; }
+      #tab-diag fluent-button { min-height: 32px; }
+      /* 万一 Fluent 组件没注册，按钮仍然可点、可看 */
+      #tab-diag fluent-button:not(:defined) {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 14px;
+        border-radius: var(--borderRadiusMedium, 4px);
+        border: 1px solid var(--colorNeutralStroke1, #666);
+        background: var(--colorNeutralBackground1, #1b1b1b);
+        color: var(--colorNeutralForeground1, #f5f5f5);
+        font: 600 13px var(--fontFamilyBase, "Segoe UI");
+        cursor: pointer;
+      }
+
+      /* ---------- 自检结果：状态徽标 + 行（容器/样式只读改造，解析仍在 app.js） ---------- */
+      #tab-diag #doctor-table { margin-top: 12px; }
+      #tab-diag #doctor-table table,
+      #tab-diag #doctor-table tbody { display: block; width: 100%; border-collapse: collapse; }
+      #tab-diag #doctor-table thead {
+        position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+      }
+      #tab-diag #doctor-table tr {
+        display: grid;
+        grid-template-columns: minmax(120px, 1fr) auto;
+        align-items: center;
+        gap: 0 12px;
+        padding: 9px 12px;
+        margin-bottom: 6px;
+        border: 1px solid var(--colorNeutralStroke2, #3a3a3a);
+        border-radius: var(--borderRadiusMedium, 4px);
+        background: var(--colorNeutralBackground2, #212121);
+        transition: background .12s ease;
+      }
+      #tab-diag #doctor-table tr:hover { background: var(--colorNeutralBackground3, #2a2a2a); }
+      #tab-diag #doctor-table td { padding: 0; border: 0; vertical-align: middle; }
+      #tab-diag #doctor-table td:first-child {
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: 600;
+        color: var(--colorNeutralForeground1, #f5f5f5);
+      }
+      #tab-diag #doctor-table td:nth-child(2) { justify-self: end; }
+      #tab-diag #doctor-table td:nth-child(3) {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin-top: 2px;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--colorNeutralForeground3, #a6a6a6);
+      }
+      /* 行左侧状态色：只看有没有对应徽标，不改解析逻辑 */
+      #tab-diag #doctor-table tr:has(.pill.bad) { box-shadow: inset 2px 0 0 var(--colorStatusDangerForeground1, #ff6363); }
+      #tab-diag #doctor-table tr:has(.pill.warn) { box-shadow: inset 2px 0 0 var(--colorStatusWarningForeground1, #ffb900); }
+      #tab-diag #doctor-table tr:has(.pill.ok) { box-shadow: inset 2px 0 0 var(--colorStatusSuccessForeground1, #54c766); }
+
+      /* 状态徽标（.pill 由 app.js 输出 ok/warn/bad，这里只换外观） */
+      #tab-diag .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-family: var(--fontFamilyBase, "Segoe UI");
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        white-space: nowrap;
+      }
+      #tab-diag #doctor-table .pill::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        flex: none;
+      }
+      #tab-diag .pill.ok {
+        color: var(--colorStatusSuccessForeground1, #6ccb7f);
+        background: var(--colorStatusSuccessBackground1, rgba(84, 199, 102, .14));
+        border-color: var(--colorStatusSuccessBorder1, rgba(84, 199, 102, .4));
+      }
+      #tab-diag .pill.warn {
+        color: var(--colorStatusWarningForeground1, #ffd68a);
+        background: var(--colorStatusWarningBackground1, rgba(255, 185, 0, .14));
+        border-color: var(--colorStatusWarningBorder1, rgba(255, 185, 0, .4));
+      }
+      #tab-diag .pill.bad {
+        color: var(--colorStatusDangerForeground1, #ff9d9d);
+        background: var(--colorStatusDangerBackground1, rgba(255, 99, 99, .14));
+        border-color: var(--colorStatusDangerBorder1, rgba(255, 99, 99, .4));
+      }
+
+      /* ---------- 一次性操作：行式条目 ---------- */
+      #tab-diag .diag-op {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 10px 0;
+      }
+      #tab-diag .diag-op + .diag-op { border-top: 1px solid var(--colorNeutralStroke3, #333); }
+      #tab-diag .diag-op-text { min-width: 220px; flex: 1 1 260px; }
+      #tab-diag .diag-op-title {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 18px;
+        color: var(--colorNeutralForeground1, #f5f5f5);
+      }
+
+      /* ---------- 拔盘守护：令牌直连的键值网格 ---------- */
+      #tab-diag #diag-watch {
+        grid-template-columns: 148px 1fr;
+        row-gap: 8px;
+        column-gap: 14px;
+        padding: 12px 14px;
+        border: 1px solid var(--colorNeutralStroke2, #3a3a3a);
+        border-radius: var(--borderRadiusMedium, 4px);
+        background: var(--colorNeutralBackground2, #212121);
+        font-size: 13px;
+        line-height: 18px;
+      }
+      #tab-diag #diag-watch > div:nth-child(odd) {
+        color: var(--colorNeutralForeground3, #a6a6a6);
+        font-size: 12px;
+      }
+      #tab-diag #diag-watch > div:nth-child(even) { color: var(--colorNeutralForeground1, #f5f5f5); }
+
+      /* ---------- 设置项：原生输入框保持原生，只套 Fluent 外观 ---------- */
+      #tab-diag .f > label,
+      #tab-diag .diag-label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12.5px;
+        line-height: 18px;
+        color: var(--colorNeutralForeground2, #d6d6d6);
+      }
+      #tab-diag .diag-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 0;
+        font-size: 12.5px;
+        line-height: 20px;
+        color: var(--colorNeutralForeground2, #d6d6d6);
+        cursor: pointer;
+      }
+      #tab-diag input:not([type="checkbox"]) {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--colorNeutralStroke1, #666);
+        border-radius: var(--borderRadiusMedium, 4px);
+        background: var(--colorNeutralBackground1, #1b1b1b);
+        color: var(--colorNeutralForeground1, #f5f5f5);
+        font-family: var(--fontFamilyBase, "Segoe UI");
+        font-size: 13px;
+      }
+      #tab-diag input:not([type="checkbox"]):focus-visible {
+        outline: 2px solid var(--colorStrokeFocus2, #fff);
+        outline-offset: 1px;
+      }
+      #tab-diag input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin: 2px 0 0;
+        accent-color: var(--colorBrandBackground, #0f6cbd);
+        flex: none;
+      }
+
+      /* ---------- 长输出：默认折叠 ---------- */
+      #tab-diag .diag-fold {
+        margin-top: 10px;
+        border: 1px solid var(--colorNeutralStroke2, #3a3a3a);
+        border-radius: var(--borderRadiusMedium, 4px);
+        background: var(--colorNeutralBackground2, #212121);
+        overflow: hidden;
+      }
+      #tab-diag .diag-fold > summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        list-style: none;
+        cursor: pointer;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--colorNeutralForeground2, #d6d6d6);
+      }
+      #tab-diag .diag-fold > summary::-webkit-details-marker { display: none; }
+      #tab-diag .diag-fold > summary::before {
+        content: "";
+        width: 0;
+        height: 0;
+        border-left: 5px solid currentColor;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        transition: transform .15s ease;
+      }
+      #tab-diag .diag-fold[open] > summary::before { transform: rotate(90deg); }
+      #tab-diag .diag-fold > summary:hover { color: var(--colorNeutralForeground1, #f5f5f5); }
+      #tab-diag .diag-fold pre {
+        margin: 0;
+        padding: 10px 12px;
+        max-height: 340px;
+        overflow: auto;
+        border-top: 1px solid var(--colorNeutralStroke3, #333);
+        background: var(--colorNeutralBackground1, #1b1b1b);
+        font-family: var(--fontFamilyMonospace, ui-monospace, Consolas, monospace);
+        font-size: 12px;
+        line-height: 17px;
+        color: var(--colorNeutralForeground2, #d6d6d6);
+      }
+      /* 整卡就是一折：启动器日志 */
+      #tab-diag .diag-fold--bare {
+        margin-top: 0;
+        border: 0;
+        background: transparent;
+      }
+      #tab-diag .diag-fold--bare > summary { padding: 0; font-size: 15px; }
+      #tab-diag .diag-fold--bare > summary h2 { margin: 0; }
+      #tab-diag .diag-fold--bare pre { border-radius: var(--borderRadiusMedium, 4px); border: 1px solid var(--colorNeutralStroke2, #3a3a3a); margin-top: 10px; }
+    </style>
+
+    <div class="card">
+      <div class="diag-card-head">
+        <h2>自检</h2>
+        <span class="diag-hint">只读检查：随时可跑，不改动站点配置</span>
+      </div>
+      <div class="row diag-actions">
+        <fluent-button appearance="accent" id="btn-doctor">运行自检</fluent-button>
+        <fluent-button id="btn-dump">验收站点配置（--dump-config）</fluent-button>
+        <fluent-button id="btn-refresh">刷新状态</fluent-button>
+      </div>
+      <div class="flash" id="diag-out"></div>
+      <div id="doctor-table" class="sub">（点「运行自检」查看结果）</div>
+      <details class="diag-fold"><summary>原始输出</summary><pre id="doctor-raw">（空）</pre></details>
+      <details class="diag-fold"><summary>验收输出</summary><pre id="dump-raw">（空）</pre></details>
+    </div>
+
+    <div class="card">
+      <div class="diag-card-head">
+        <h2>一次性操作</h2>
+        <span class="diag-hint">做过就不用再点，不会自动执行</span>
+      </div>
+      <div class="diag-op">
+        <div class="diag-op-text">
+          <div class="diag-op-title">备份 data\ 与覆盖层</div>
+          <div class="sub">把盘上的数据目录与覆盖层另存一份，出问题时还能退回来。</div>
+        </div>
+        <fluent-button id="btn-backup">立即备份</fluent-button>
+      </div>
+      <div class="diag-op">
+        <div class="diag-op-text">
+          <div class="diag-op-title">清除「上次丢盘」记录</div>
+          <div class="sub">确认盘没问题、或想重新开始统计时再清。</div>
+        </div>
+        <fluent-button id="btn-clear-dl">清除记录</fluent-button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="diag-card-head">
+        <h2>拔盘守护</h2>
+        <span class="diag-hint">后台服务的判定与状态</span>
+      </div>
+      <p class="sub diag-lead">U 盘被拔走以后，还在内存里跑的进程不会自己停——dsh 会继续对着一个不存在的盘干活：会话写不回去、任务白跑，等盘插回来看到的还是盘上那份旧状态。所以本服务每隔几秒在盘上读一次自己的哨兵文件，连续几次读不到就判定「盘没了」：先写一条记录到宿主临时目录，然后停掉在跑的任务、杀掉 dsh，最后退出本服务。</p>
+      <div class="grid" id="diag-watch"></div>
+      <div class="sub" id="diag-watch-note" style="margin-top:8px"></div>
+    </div>
+
+    <div class="diag-group-head">
+      <span class="diag-group-title">设置</span>
+      <span class="diag-hint">改完点各自的保存按钮；端口改动下次启动 dsh 生效</span>
+    </div>
+
+    <div class="card">
+      <div class="diag-card-head">
+        <h2>网页端口</h2>
+      </div>
+      <div class="row">
+        <div class="f"><label class="diag-label" for="p-port">dsh 网页端口（默认 3180，避开机器上自装的 dsh）</label><input id="p-port"></div>
+        <fluent-button id="btn-port">保存端口</fluent-button>
+      </div>
+      <div class="flash" id="port-out"></div>
+    </div>
+
+    <div class="card">
+      <div class="diag-card-head">
+        <h2>临时目录</h2>
+      </div>
+      <p class="sub diag-lead">默认放在宿主 <code>%LOCALAPPDATA%\Temp</code>：Windows ACL 沙箱要求在临时目录里写安全描述符，
+        而数据盘根目录通常缺 <code>WRITE_OWNER</code>，放盘上会让 workspace-write 直接失败。</p>
+      <div class="row">
+        <div class="f"><label class="diag-check" for="t-usb"><input type="checkbox" id="t-usb"> 把临时目录放回本盘（仅当这块盘给足了 WRITE_OWNER）</label></div>
+        <fluent-button id="btn-temp">保存</fluent-button>
+      </div>
+      <div class="flash" id="temp-out"></div>
+    </div>
+
+    <div class="card">
+      <details class="diag-fold diag-fold--bare">
+        <summary><h2>启动器日志</h2></summary>
+        <pre id="launcher-log">（空）</pre>
+      </details>
+    </div>
+  </section>

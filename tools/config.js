@@ -16,6 +16,7 @@ const os = require('os');
 const readline = require('readline');
 const { spawnSync } = require('child_process');
 const secretLib = require('./secret.js');
+const npmsrc = require('./npmsrc.js');
 
 const ROOT = process.env.WZD_ROOT || path.resolve(__dirname, '..');
 const RUNTIME = path.join(ROOT, 'runtime');
@@ -207,20 +208,29 @@ function doctor() {
 }
 
 // ---------------------------------------------------------------- backup
+// 备份 data/ 时**排除 .webview**：那是 WebView2 的用户数据（缓存/cookie），
+// 运行中的浏览器进程会把 lockfile 锁住，Compress-Archive 会直接失败；
+// 而且它本来也不是「用户数据」，没必要进备份。
 function backupData(reason) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  const used = dirSize(DATA);
+  const WEBVIEW = path.join(DATA, '.webview');
+  const used = dirSize(DATA) - (fs.existsSync(WEBVIEW) ? dirSize(WEBVIEW) : 0);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
   const zip = path.join(BACKUP_DIR, 'data-' + readCurrent() + '-' + versionOf(readCurrent()) + '-' + stamp + '.zip');
   if (used < 4096) {
     console.log('  data/ 是空的（' + used + ' 字节），跳过备份');
     return null;
   }
-  console.log('  正在打包 data/ 共 ' + human(used) + ' ...');
-  const r = run('powershell', ['-NoProfile', '-Command',
-    "$ErrorActionPreference='Stop'; Compress-Archive -Path '" + path.join(DATA, '*') + "' -DestinationPath '" + zip + "' -Force"]);
+  console.log('  正在打包 data/ 共 ' + human(used) + '（已排除浏览器数据目录 .webview）...');
+  // [Console]::OutputEncoding 让 PowerShell 的错误以 UTF-8 出来，否则日志里是 GBK 乱码。
+  const ps = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $ErrorActionPreference='Stop';"
+    + " $items = @(Get-ChildItem -LiteralPath '" + DATA + "' -Force | Where-Object { $_.Name -ne '.webview' });"
+    + " if ($items.Count -eq 0) { throw '排除 .webview 后没有可备份的内容' };"
+    + " Compress-Archive -Path ($items | ForEach-Object { $_.FullName }) -DestinationPath '" + zip + "' -Force";
+  const r = run('powershell', ['-NoProfile', '-Command', ps]);
   if (r.status !== 0) {
     console.log('  备份失败：' + String(r.stderr || r.stdout || '').trim());
+    console.log('  （升级会继续；只是这次没有留下降级用的备份）');
     return null;
   }
   logVersion('backup reason=' + (reason || 'manual') + ' file=' + path.basename(zip) + ' size=' + fs.statSync(zip).size);
@@ -260,14 +270,22 @@ async function upgrade(target, assumeYes) {
   console.log('  正在安装到 ' + idle + ' ...');
   let usedRegistry = null;
   let lastErr = '';
-  for (const reg of REGISTRIES) {
-    console.log('    尝试 ' + reg.label);
+  // 源由用户偏好决定（页面/维护台可改），并在装之前先探一次可达性：
+  // 官方源在部分网络下是「连得上但不回包」，只靠 npm 自己等会空等半小时。
+  const chosen = npmsrc.list();
+  console.log('  当前源偏好：' + npmsrc.read().mode + '（' + chosen.map((r) => r.label).join(' → ') + '）');
+  const candidates = await npmsrc.order(chosen, (m) => console.log(m));
+  for (const reg of candidates) {
+    const tmo = reg.probed === false ? 120000 : 600000;
+    console.log('    尝试 ' + reg.label + '（单次最多等 ' + Math.round(tmo / 60000) + ' 分钟，失败自动换源）');
     const r = run(NODE_EXE, [NPM_CLI, 'install',
       '--cache=' + path.join(RUNTIME, 'npm-cache'),
       '--registry=' + reg.url,
-      '--no-audit', '--no-fund', '--loglevel=error'], { cwd: slot(idle), timeout: 1800000 });
+      '--fetch-timeout=60000', '--fetch-retries=1', '--fetch-retry-mintimeout=2000',
+      '--no-audit', '--no-fund', '--loglevel=error'], { cwd: slot(idle), timeout: tmo, env: require('./npmrc.js').env() });
     if (r.status === 0) { usedRegistry = reg; break; }
-    lastErr = String(r.stderr || r.stdout || '').trim().split('\n').slice(-4).join(' | ');
+    lastErr = String(r.stderr || r.stdout || '').trim().split('\n').slice(-4).join(' | ')
+      || (r.error && r.error.code === 'ETIMEDOUT' ? '超时（10 分钟没有结果）' : '未知错误');
     console.log('    ' + reg.label + ' 失败：' + lastErr);
   }
   if (!usedRegistry) {

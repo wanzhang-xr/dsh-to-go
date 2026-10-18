@@ -1,0 +1,47 @@
+<!-- 一条顶栏：应用信息 + 操作按钮 + 窗口按钮。
+     宿主里它就是标题栏：左侧空白可拖动、双击最大化；从 #tb-actions 往右是交互区。 -->
+<header id="titlebar">
+  <h1>
+    <svg class="app-mark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <rect x="2.5" y="4.5" width="19" height="15" rx="3.5"/>
+      <path d="M6.5 9.5h11M6.5 13h7"/>
+    </svg>
+    <span class="app-title">便携版 DeepSeek Harness</span>
+    <span class="sub" id="hdr-sub">正在读取状态…</span>
+    <span class="pill" id="hdr-login"><span class="dot off"></span> 未解锁</span>
+  </h1>
+  <div class="row hdr-actions" id="tb-actions">
+    <button class="btn" id="btn-theme" type="button" aria-pressed="false" title="深色 / 浅色切换（会记住你的选择）">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-2px">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/>
+      </svg>
+      <span id="btn-theme-label">浅色</span>
+    </button>
+    <button class="btn" id="btn-logout" hidden>退出解锁</button>
+    <!-- 窗口按钮：只有启动器宿主里才出现（浏览器回退时用浏览器自己的标题栏） -->
+    <div class="tb-ctl" id="tb-ctl" hidden>
+      <button id="tb-min" type="button" aria-label="最小化">
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5h8" stroke="currentColor" stroke-width="1.1"/></svg>
+      </button>
+      <button id="tb-max" type="button" aria-label="最大化">
+        <svg class="i-max" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.2" y="1.2" width="7.6" height="7.6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
+        <svg class="i-restore" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="3" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M3.4 3V2.2A1.2 1.2 0 0 1 4.6 1H7.8a1.2 1.2 0 0 1 1.2 1.2v3.2A1.2 1.2 0 0 1 7.8 6.6H7" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
+      </button>
+      <button id="tb-close" type="button" aria-label="关闭">
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.4 1.4l7.2 7.2M8.6 1.4l-7.2 7.2" stroke="currentColor" stroke-width="1.1"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav role="tablist" aria-label="功能分区">
+  <button role="tab" data-tab="overview" aria-selected="true">概览</button>
+  <button role="tab" data-tab="sites" aria-selected="false">站点和模型</button>
+  <button role="tab" data-tab="upgrade" aria-selected="false">升级</button>
+  <button role="tab" data-tab="diag" aria-selected="false">诊断</button>
+  <button role="tab" data-tab="plugins" aria-selected="false">插件</button>
+  <button role="tab" data-tab="launcher" aria-selected="false">启动器</button>
+</nav>
+
+<div id="banner" hidden></div>

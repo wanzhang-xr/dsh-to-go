@@ -1,0 +1,447 @@
+<style>
+/* ===========================================================================
+   站点和模型（Fluent 2 深色）
+   只改本分区的观感：所有选择器都以 #tab-sites 开头，不动全局。
+   JS 由 id 驱动（站点列表 / 模型列表 / 密钥框 / 探测 / 覆盖层重建都在
+   src/app.js 里按 id 取值），这里只调层次、间隔、权重，不改语义。
+   按钮保持原生 <button>：withBusy() 会写 btn.disabled 并替换 innerHTML，
+   换成 fluent-button 会丢掉禁用态，所以用 Fluent 的尺寸/配色去对齐外观。
+   =========================================================================== */
+
+/* ---- 卡片与标题 ---- */
+#tab-sites .card{
+  background:var(--colorNeutralBackground1);
+  border:1px solid var(--colorNeutralStroke3);
+  border-radius:var(--borderRadiusXLarge);
+  padding:20px;
+  box-shadow:0 1px 2px rgba(0,0,0,.28);
+}
+#tab-sites h2{
+  display:flex;align-items:center;gap:9px;
+  margin:0 0 4px;font-size:16px;font-weight:600;letter-spacing:.1px;
+  color:var(--colorNeutralForeground1);
+}
+#tab-sites h2::before{
+  content:'';flex:0 0 auto;width:3px;height:16px;border-radius:2px;
+  background:var(--colorBrandStroke1);
+}
+#tab-sites h3{
+  margin:0 0 10px;font-size:12.5px;font-weight:600;letter-spacing:.3px;
+  color:var(--colorNeutralForeground3);
+}
+#tab-sites .sub{color:var(--colorNeutralForeground3);font-size:12.5px;line-height:1.55}
+#tab-sites .card > .sub{margin:0 0 14px;max-width:76ch}
+#tab-sites .hint{margin:0;color:var(--colorNeutralForeground4);font-size:11.5px;line-height:1.5}
+
+/* ---- 分组：把密集字段切成有标题的块 ---- */
+#tab-sites .s-group{margin-top:20px;padding-top:18px;border-top:1px solid var(--colorNeutralStroke3)}
+#tab-sites .s-group:first-of-type{margin-top:16px;padding-top:0;border-top:0}
+#tab-sites .s-group-hd{
+  display:flex;align-items:center;gap:8px;margin:0 0 12px;
+  font-size:12px;font-weight:600;letter-spacing:.4px;color:var(--colorNeutralForeground3);
+}
+#tab-sites .s-group-hd::after{content:'';flex:1 1 auto;height:1px;background:var(--colorNeutralStroke3)}
+
+/* ---- 字段网格 ---- */
+#tab-sites .s-grid{display:grid;gap:14px 16px;align-items:start;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+#tab-sites .s-grid.wide{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+#tab-sites .f{display:flex;flex-direction:column;gap:6px;min-width:0;flex:none}
+#tab-sites .f > label:not(.switch){display:block;font-size:12px;font-weight:600;line-height:1.45;color:var(--colorNeutralForeground2)}
+#tab-sites .f > label.switch{flex-direction:row;min-height:34px}
+#tab-sites .f > label .sub{display:block;font-weight:400;color:var(--colorNeutralForeground4)}
+
+/* ---- 原生输入控件（JS 读 .value，保持原生）---- */
+#tab-sites input:not([type=checkbox]):not([type=radio]),
+#tab-sites select{
+  width:100%;height:34px;padding:0 10px;font-size:13px;
+  background:var(--colorNeutralBackground3);color:var(--colorNeutralForeground1);
+  border:1px solid var(--colorNeutralStroke1);
+  border-bottom:1px solid var(--colorNeutralStrokeAccessible);
+  border-radius:var(--borderRadiusMedium);
+  transition:background var(--t-fast) var(--e-out),border-color var(--t-fast) var(--e-out);
+}
+#tab-sites input:not([type=checkbox]):not([type=radio]):hover:not(:disabled),
+#tab-sites select:hover:not(:disabled){background-color:var(--colorNeutralBackground2)}
+#tab-sites input:not([type=checkbox]):not([type=radio]):focus-visible,
+#tab-sites select:focus-visible{
+  outline:none;background-color:var(--colorNeutralBackground2);
+  border-bottom:2px solid var(--colorBrandStroke1);
+}
+#tab-sites input:disabled,#tab-sites select:disabled{opacity:.55;cursor:not-allowed}
+#tab-sites input::placeholder{color:var(--colorNeutralForeground4);font-size:12.5px}
+#tab-sites input.mono{font-family:var(--font-mono);font-size:12.5px}
+#tab-sites input[type=password]{letter-spacing:.06em}
+#tab-sites select{appearance:none;padding-right:28px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--colorNeutralForeground3) 50%),
+                   linear-gradient(135deg,var(--colorNeutralForeground3) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 15px,calc(100% - 10px) 15px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
+/* ---- 复选框行（原生 input，只换排版）---- */
+#tab-sites .s-checks{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+#tab-sites label.s-ck{
+  display:flex;gap:10px;align-items:flex-start;cursor:pointer;
+  padding:8px 10px;border-radius:var(--borderRadiusMedium);
+  border:1px solid transparent;font-size:12.5px;font-weight:400;line-height:1.5;
+  color:var(--colorNeutralForeground2);
+  transition:background var(--t-fast) var(--e-out),border-color var(--t-fast) var(--e-out);
+}
+#tab-sites label.s-ck:hover{background:var(--colorNeutralBackground2);border-color:var(--colorNeutralStroke3)}
+#tab-sites label.s-ck input{flex:0 0 auto;width:16px;height:16px;margin:1px 0 0;
+  accent-color:var(--colorBrandBackground)}
+
+/* ---- 按钮：对齐 fluent-button 的尺寸与配色 ---- */
+#tab-sites .btn{
+  min-height:32px;padding:0 12px;gap:6px;
+  font-size:14px;font-weight:600;line-height:1;
+  background:var(--colorNeutralBackground1);color:var(--colorNeutralForeground1);
+  border:1px solid var(--colorNeutralStroke1);border-radius:var(--borderRadiusMedium);
+  transition:background var(--t-fast) var(--e-out),border-color var(--t-fast) var(--e-out),
+             color var(--t-fast) var(--e-out);
+}
+#tab-sites .btn:hover{background:var(--colorNeutralBackground3);border-color:var(--colorNeutralStroke2)}
+#tab-sites .btn:active{background:var(--colorNeutralBackground2)}
+#tab-sites .btn.primary{
+  background:var(--colorBrandBackground);border-color:var(--colorBrandBackground);
+  color:#fff;
+}
+#tab-sites .btn.primary:hover{
+  background:var(--colorBrandBackgroundHover);border-color:var(--colorBrandBackgroundHover);
+}
+#tab-sites .btn[disabled]{opacity:.5;cursor:progress}
+
+/* ---- 危险操作：单独分区，明确低一档但不能误触 ---- */
+#tab-sites .s-footer{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  margin-top:20px;padding-top:16px;border-top:1px solid var(--colorNeutralStroke3);
+}
+#tab-sites .s-danger-zone{
+  margin-left:auto;display:flex;align-items:center;gap:8px;
+  padding-left:16px;border-left:1px solid var(--colorNeutralStroke3);
+}
+#tab-sites .btn.danger{
+  background:transparent;color:var(--colorStatusDangerForeground1);
+  border-color:color-mix(in srgb,var(--colorStatusDangerForeground1) 55%,transparent);
+}
+#tab-sites .btn.danger:hover{
+  background:var(--colorStatusDangerBackground1);
+  border-color:var(--colorStatusDangerForeground1);
+  color:var(--colorStatusDangerForeground1);
+}
+
+/* ---- 站点列表（JS 生成的 .site 结构）---- */
+#tab-sites #site-list{font-size:13px;color:var(--colorNeutralForeground3)}
+#tab-sites #site-list:has(.site){color:var(--colorNeutralForeground1)}
+#tab-sites .site{
+  margin-bottom:10px;padding:14px 16px;
+  background:var(--colorNeutralBackground2);
+  border:1px solid var(--colorNeutralStroke3);border-radius:var(--borderRadiusLarge);
+  transition:border-color var(--t-fast) var(--e-out),background var(--t-fast) var(--e-out);
+}
+#tab-sites .site:hover{border-color:var(--colorNeutralStroke2);background:var(--colorNeutralBackground1)}
+#tab-sites .site .top{align-items:flex-start;gap:12px}
+#tab-sites .site .title{font-size:14.5px;font-weight:600;line-height:1.4;color:var(--colorNeutralForeground1)}
+#tab-sites .site .title .sub{font-weight:400;color:var(--colorNeutralForeground3)}
+#tab-sites .site .mono{
+  font-family:var(--font-mono);font-size:11.5px;line-height:1.6;
+  color:var(--colorNeutralForeground4);word-break:break-all;
+}
+#tab-sites .site > .row .btn{min-height:28px;padding:0 10px;font-size:12.5px;font-weight:400}
+#tab-sites .site .tag{
+  display:inline-block;margin:5px 6px 0 0;padding:2px 8px;
+  border:1px solid var(--colorNeutralStroke3);border-radius:var(--borderRadiusMedium);
+  background:var(--colorNeutralBackground3);
+  font-size:11.5px;color:var(--colorNeutralForeground2);
+}
+#tab-sites .site .tag.vision{
+  color:var(--colorBrandForeground1);
+  border-color:color-mix(in srgb,var(--colorBrandStroke1) 50%,transparent);
+}
+#tab-sites .pill{
+  padding:1px 8px;border-radius:var(--borderRadiusMedium);
+  font-size:11.5px;font-weight:600;line-height:1.6;
+}
+#tab-sites .pill.ok{
+  color:var(--colorStatusSuccessForeground1);border-color:rgba(84,176,84,.45);
+  background:rgba(84,176,84,.10);
+}
+#tab-sites .pill.warn{
+  color:var(--colorStatusWarningForeground1);border-color:rgba(252,225,0,.32);
+  background:rgba(252,225,0,.07);
+}
+#tab-sites .pill.bad{
+  color:var(--colorStatusDangerForeground1);border-color:rgba(255,153,164,.40);
+  background:var(--colorStatusDangerBackground1);
+}
+
+/* ---- 模型列表（JS 生成的 table.mtable）---- */
+#tab-sites .s-models-hd{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+#tab-sites .s-models-hd h3{margin:0}
+#tab-sites .s-models-hd .sub{margin-left:auto;text-align:right}
+#tab-sites #s-model-list{margin-top:12px;font-size:12.5px;color:var(--colorNeutralForeground3)}
+#tab-sites #s-model-list:has(.mtable){
+  padding:0;overflow:hidden;color:var(--colorNeutralForeground1);
+  background:var(--colorNeutralBackground2);
+  border:1px solid var(--colorNeutralStroke3);border-radius:var(--borderRadiusLarge);
+}
+#tab-sites .mtable{width:100%;margin:0;border-collapse:collapse;font-size:13px}
+#tab-sites .mtable thead th{
+  padding:8px 14px;text-align:left;white-space:nowrap;
+  font-size:11.5px;font-weight:600;letter-spacing:.2px;
+  color:var(--colorNeutralForeground3);
+  background:var(--colorNeutralBackground1);
+  border-bottom:1px solid var(--colorNeutralStroke2);
+}
+#tab-sites .mtable td{
+  padding:9px 14px;vertical-align:middle;
+  border-bottom:1px solid var(--colorNeutralStroke3);
+}
+#tab-sites .mtable td.mono{font-family:var(--font-mono);font-size:12.5px}
+#tab-sites .mtable tbody tr:last-child td{border-bottom:0}
+#tab-sites .mtable tbody tr{transition:background var(--t-fast) var(--e-out)}
+#tab-sites .mtable tbody tr:hover{background:var(--colorNeutralBackground1)}
+#tab-sites .mtable td:last-child{text-align:right;white-space:nowrap}
+#tab-sites .mtable .btn{
+  min-height:26px;padding:0 9px;font-size:12px;font-weight:400;
+  background:transparent;border-color:transparent;color:var(--colorNeutralForeground2);
+}
+#tab-sites .mtable .btn:hover{
+  background:var(--colorNeutralBackground3);border-color:var(--colorNeutralStroke3);
+  color:var(--colorNeutralForeground1);
+}
+#tab-sites .mtable .btn.danger{color:var(--colorStatusDangerForeground1)}
+#tab-sites .mtable .btn.danger:hover{
+  background:var(--colorStatusDangerBackground1);border-color:transparent;
+  color:var(--colorStatusDangerForeground1);
+}
+
+/* ---- 模型表单：内嵌面板，别再套一层卡片 ---- */
+#tab-sites .s-panel{
+  margin-top:14px;padding:16px;
+  background:var(--colorNeutralBackground2);
+  border:1px solid var(--colorNeutralStroke3);
+  border-left:2px solid var(--colorBrandStroke1);
+  border-radius:var(--borderRadiusLarge);
+}
+#tab-sites .s-panel h3{margin:0 0 12px;color:var(--colorNeutralForeground2)}
+#tab-sites .picker{display:flex;gap:8px;align-items:center;margin-top:2px}
+#tab-sites .picker input{flex:1 1 auto}
+#tab-sites #m-toggle{
+  flex:0 0 auto;width:34px;min-height:34px;padding:0;justify-content:center;
+  background:var(--colorNeutralBackground1);
+}
+#tab-sites .dd{
+  padding:4px;
+  background:var(--colorNeutralBackground1);
+  border:1px solid var(--colorNeutralStroke2);
+  border-radius:var(--borderRadiusLarge);
+  box-shadow:0 10px 24px rgba(0,0,0,.48);
+}
+#tab-sites .dd div{
+  padding:7px 10px;border-radius:var(--borderRadiusMedium);
+  font-family:var(--font-mono);font-size:12.5px;
+}
+#tab-sites .dd div:hover,#tab-sites .dd div.on{background:var(--colorNeutralBackground3)}
+#tab-sites .dd div.empty{font-family:var(--font-ui);color:var(--colorNeutralForeground3)}
+
+/* ---- 视觉开关（原生 checkbox，Fluent 轨道）---- */
+#tab-sites label.switch{min-height:34px;gap:10px;font-size:12.5px}
+#tab-sites label.switch .track{
+  width:40px;height:20px;border-radius:10px;
+  background:var(--colorNeutralBackground3);
+  border:1px solid var(--colorNeutralStroke1);
+}
+#tab-sites label.switch .track::after{
+  top:3px;left:3px;width:12px;height:12px;
+  background:var(--colorNeutralForeground2);box-shadow:none;
+}
+#tab-sites label.switch input:checked + .track{
+  background:var(--colorBrandBackground);border-color:var(--colorBrandBackground);
+}
+#tab-sites label.switch input:checked + .track::after{
+  transform:translateX(20px);background:#fff;
+}
+#tab-sites label.switch .txt{color:var(--colorNeutralForeground3)}
+#tab-sites label.switch input:checked ~ .txt{color:var(--colorBrandForeground1)}
+
+/* ---- 折叠区：实现细节收在这里 ---- */
+#tab-sites details.more{
+  margin:0 0 14px;padding-top:10px;
+  border-top:1px solid var(--colorNeutralStroke3);
+}
+#tab-sites details.more > summary{
+  font-size:12px;color:var(--colorNeutralForeground3);padding:1px 0;
+  transition:color var(--t-fast) var(--e-out);
+}
+#tab-sites details.more > summary:hover{color:var(--colorNeutralForeground2)}
+#tab-sites details.more[open] > summary{color:var(--colorNeutralForeground2)}
+#tab-sites details.more > .body{
+  margin-top:9px;padding:10px 12px;
+  background:var(--colorNeutralBackground2);
+  border:1px solid var(--colorNeutralStroke3);border-radius:var(--borderRadiusMedium);
+  font-size:12px;line-height:1.75;color:var(--colorNeutralForeground3);
+}
+#tab-sites details.more > .body code{
+  padding:0 4px;border-radius:3px;
+  background:var(--colorNeutralBackground3);
+  border:1px solid var(--colorNeutralStroke3);
+  font-size:11.5px;color:var(--colorNeutralForeground1);
+}
+
+/* ---- 提示条 ---- */
+#tab-sites .flash{
+  margin-top:12px;padding:10px 12px;border-radius:var(--borderRadiusMedium);
+  border:1px solid var(--colorNeutralStroke3);
+  font-size:12.5px;line-height:1.55;
+}
+#tab-sites .flash.on{display:block;border-left:3px solid var(--colorNeutralStroke1)}
+#tab-sites .flash.ok{border-left-color:var(--colorStatusSuccessForeground1);color:var(--colorStatusSuccessForeground1)}
+#tab-sites .flash.err{border-left-color:var(--colorStatusDangerForeground1);color:var(--colorStatusDangerForeground1)}
+#tab-sites .flash.warn{border-left-color:var(--colorStatusWarningForeground1);color:var(--colorStatusWarningForeground1)}
+#tab-sites .flash .act{
+  min-height:28px;padding:0 10px;font-size:12.5px;border-radius:var(--borderRadiusMedium);
+  background:transparent;border:1px solid currentColor;color:inherit;
+}
+
+/* ---- 默认模型 ---- */
+#tab-sites .s-default-row{
+  display:grid;gap:12px 16px;align-items:end;
+  grid-template-columns:minmax(200px,1fr) minmax(200px,1fr) auto;
+}
+@media (max-width:640px){
+  #tab-sites .s-default-row{grid-template-columns:1fr}
+  #tab-sites .s-danger-zone{margin-left:0;padding-left:0;border-left:0;width:100%}
+}
+</style>
+
+<!-- ============================================ 站点和模型 -->
+<section id="tab-sites" role="tabpanel" hidden>
+  <div class="card">
+    <h2>站点（可同时启用多个）</h2>
+    <p class="sub">站点可以同时启用多个；每个站点的密钥单独加密保存，变量名自动生成。站点 ID 不可重复。</p>
+    <details class="more"><summary>详情：站点表与覆盖层</summary><div class="body">
+      <span class="ln">站点表写在 <code>data\sites.json</code>，覆盖层 <code>data\site-patch.yml</code> 由它生成，启动时以 <code>--patch</code> 交给 dsh。</span>
+      <span class="ln">密钥变量名默认按 <code>站点ID_API_KEY</code> 生成，也可以自己指定。</span>
+    </div></details>
+    <div id="site-list" class="sub">正在读取站点…</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="btn-site-new">新增站点</button>
+      <button class="btn" id="btn-overlay-rebuild">重新生成覆盖层并验收</button>
+    </div>
+    <div class="flash" id="site-out"></div>
+  </div>
+
+  <div class="card" id="site-editor" hidden>
+    <h2 id="site-editor-title">新增站点</h2>
+
+    <div class="s-group">
+      <div class="s-group-hd">基础信息</div>
+      <div class="s-grid wide">
+        <div class="f"><label for="s-id">站点 ID（小写字母/数字/连字符，不可重复）</label><input id="s-id" placeholder="my-relay"></div>
+        <div class="f"><label for="s-name">备注名（只给自己看）</label><input id="s-name" placeholder="朋友的网关"></div>
+      </div>
+    </div>
+
+    <div class="s-group">
+      <div class="s-group-hd">接口与密钥</div>
+      <div class="s-grid wide">
+        <div class="f"><label for="s-url">接口地址（含 /v1）</label><input id="s-url" placeholder="https://api.example.com/v1"></div>
+        <div class="f"><label for="s-api">协议</label>
+          <select id="s-api">
+            <option value="openai-completions">OpenAI Chat Completions</option>
+            <option value="openai-responses">OpenAI Responses</option>
+            <option value="anthropic-messages">Anthropic Messages</option>
+          </select>
+        </div>
+      </div>
+      <div class="s-grid wide" style="margin-top:14px">
+        <div class="f">
+          <label for="s-keyenv">密钥变量名（默认按站点 ID 生成）</label>
+          <input id="s-keyenv" placeholder="MY_RELAY_API_KEY">
+        </div>
+        <div class="f">
+          <label for="s-key">API 密钥</label>
+          <input id="s-key" type="password" autocomplete="off" class="mono">
+          <p class="hint" id="s-key-hint">（只走本地请求，进程内加密，不落明文）</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-group">
+      <div class="s-group-hd">选项</div>
+      <div class="s-checks">
+        <label class="s-ck"><input type="checkbox" id="s-compat"> 写入兼容修正（网关拒收 role:developer 或只认 max_tokens 时勾选）</label>
+        <label class="s-ck"><input type="checkbox" id="s-enabled" checked> 启用该站点（不启用则不生成 provider）</label>
+      </div>
+    </div>
+
+    <div class="s-group">
+      <div class="s-models-hd">
+        <h3>模型</h3>
+        <span class="sub">先拉取可以点选，也可以直接手输模型 ID</span>
+      </div>
+      <div class="row">
+        <button class="btn" id="btn-probe">拉取模型</button>
+        <button class="btn" id="btn-model-add">添加模型</button>
+      </div>
+      <div id="s-probe-out" class="flash"></div>
+      <div id="s-model-list" class="sub">（还没有模型）</div>
+
+      <div class="s-panel" id="model-form" hidden>
+        <h3 id="model-form-title">添加模型</h3>
+        <div class="f">
+          <label for="m-id">模型</label>
+          <div class="picker-wrap">
+            <div class="picker">
+              <input id="m-id" autocomplete="off" placeholder="请先获取模型或手动输入模型">
+              <button class="btn" id="m-toggle" type="button" aria-label="展开模型列表" title="展开模型列表">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+            </div>
+            <div id="m-dd" class="dd" hidden></div>
+          </div>
+        </div>
+        <div class="s-grid" style="margin-top:14px">
+          <div class="f">
+            <label for="m-ctx">上下文</label>
+            <input id="m-ctx" autocomplete="off" placeholder="auto" inputmode="numeric">
+            <p class="hint">留空 = auto（交给 dsh 用默认值）；也可以填正整数</p>
+          </div>
+          <div class="f">
+            <label for="m-vision">视觉</label>
+            <label class="switch"><input type="checkbox" id="m-vision" role="switch"><span class="track"></span><span class="txt" id="m-vision-txt">不支持图片</span></label>
+          </div>
+        </div>
+        <div class="row" style="margin-top:16px">
+          <button class="btn primary" id="btn-model-ok">确认</button>
+          <button class="btn" id="btn-model-cancel">取消</button>
+        </div>
+        <div class="flash" id="model-form-out"></div>
+      </div>
+    </div>
+
+    <div class="s-footer">
+      <button class="btn primary" id="btn-site-save">保存站点</button>
+      <button class="btn" id="btn-site-cancel">取消</button>
+      <div class="s-danger-zone">
+        <button class="btn danger" id="btn-site-del" hidden>删除该站点</button>
+      </div>
+    </div>
+    <div class="flash" id="site-edit-out"></div>
+  </div>
+
+  <div class="card">
+    <h2>默认模型</h2>
+    <p class="sub">agent 默认用哪个站点的哪个模型。</p>
+    <details class="more"><summary>详情</summary><div class="body">
+      <span class="ln">这一项会写进覆盖层里的 <code>agent-default-model</code> 条目。</span>
+    </div></details>
+    <div class="s-default-row">
+      <div class="f"><label for="d-site">站点</label><select id="d-site"></select></div>
+      <div class="f"><label for="d-model">模型</label><select id="d-model"></select></div>
+      <button class="btn primary" id="btn-default-save">设为默认</button>
+    </div>
+    <div class="flash" id="default-out"></div>
+  </div>
+</section>

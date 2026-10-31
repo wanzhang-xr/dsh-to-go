@@ -1,0 +1,15 @@
+{
+  "repo": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "ce7073d51254c26cd63b22a60835b8f948deb447",
+  "fetchedAt": "2026-10-31",
+  "files": [
+    "design-platform.css",
+    "base.css",
+    "corner-shape.css",
+    "scrollbar.css",
+    "focus.css"
+  ],
+  "sourceDir": "packages/client/ui-theme/src/styles/",
+  "license": "MIT",
+  "note": "原样复制，未修改内容；仅作为设计 token 层被我们的页面与桌面壳引用。"
+}

@@ -61,6 +61,11 @@ const RUNTIME = path.join(ROOT, 'runtime');
 // 否则测试会往仓库真实的 data\ 里写文件（探测缓存、插件清单、启动器日志都读它）。
 const DATA = process.env.WZD_DATA_DIR || path.join(ROOT, 'data');
 const PREFS_FILE = path.join(DATA, 'ui-prefs.json');
+const WALL_DIR = path.join(DATA, 'wallpaper');
+const WALL_FILE = path.join(WALL_DIR, 'bg.img');
+const WALL_META = path.join(WALL_DIR, 'meta.json');
+const WALL_MAX = 6 * 1024 * 1024;          // 6MB：base64 之后约 8MB 请求体
+const WALL_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const NODE_EXE = path.join(RUNTIME, 'node', 'node.exe');
 const PAGE = path.join(ROOT, 'ui', 'app.html');
 const PORT_FILE = path.join(RUNTIME, 'port.txt');
@@ -441,7 +446,7 @@ async function handleApi(req, res, url) {
   };
   const bodyText = await new Promise((resolve) => {
     let data = '';
-    req.on('data', (c) => { data += c; if (data.length > 1024 * 1024) req.destroy(); });
+    req.on('data', (c) => { data += c; if (data.length > 9 * 1024 * 1024) req.destroy(); });
     req.on('end', () => resolve(data));
     req.on('error', () => resolve(''));
   });
@@ -633,6 +638,16 @@ async function handleApi(req, res, url) {
       const before = dshStatus();
       if (before.running) return send(409, { error: 'dsh 已经在运行', state: state() });
       const webPort = readPort();
+      // 盘上根本没装 dsh 时，spawn 出来的进程会立刻退出，以前只会甩一个光秃秃的 500。
+      // 先判掉，给一句能照着做的话。
+      const activeSlot = (state().slot && state().slot.active) || 'agent-A';
+      if (dshVersion(activeSlot) === 'not-installed') {
+        return send(409, {
+          error: '这个盘上还没装 dsh（活动槽 ' + activeSlot + ' 是 not-installed）。'
+            + '先到「升级」里安装 dsh，再回来点启动。',
+          state: state(),
+        });
+      }
       if (portListening(webPort)) return send(409, { error: '端口 ' + webPort + ' 已被别的程序占用（dsh 不会自动换端口）', state: state() });
       // 口令只经子进程环境变量传递：不进命令行、不落盘
       const child = spawn(NODE_EXE, [path.join(__dirname, 'launch.js'), 'web', '--no-open'], {
@@ -666,9 +681,13 @@ async function handleApi(req, res, url) {
         await new Promise((r) => setTimeout(r, 500));
       }
       const after = dshStatus();
-      return send(after.running ? 200 : 500, {
-        ok: after.running,
-        text: out.split('\n').filter(Boolean).slice(-8).join('\n'),
+      const tail = out.split('\n').map((x) => x.trim()).filter(Boolean);
+      if (after.running) return send(200, { ok: true, state: state() });
+      return send(500, {
+        ok: false,
+        // error 给页面直接显示；text 保留完整尾巴，方便贴到 issue 里
+        error: 'dsh 启动失败：' + (tail.slice(-2).join(' / ') || '没有输出（进程立刻退出了）'),
+        text: tail.slice(-8).join('\n'),
         state: state(),
       });
     }
@@ -891,6 +910,57 @@ async function handleApi(req, res, url) {
         const r = await marketLib.load({ force: true });
         return send(200, { ok: true, count: r.count, updated: r.updated, source: r.source, refreshedAt: r.fetchedAt });
       } catch (e) { return send(502, { ok: false, error: (e && e.message) || String(e) }); }
+    }
+
+    // ---------------------------------------------------------------- 自定义背景（存盘，跟盘走）
+    if (p === '/api/wallpaper' && req.method === 'GET') {
+      try {
+        const meta = JSON.parse(fs.readFileSync(WALL_META, 'utf8'));
+        const buf = fs.readFileSync(WALL_FILE);
+        res.writeHead(200, {
+          'Content-Type': meta.mime || 'image/webp',
+          'Content-Length': buf.length,
+          'Cache-Control': 'no-store',
+        });
+        return res.end(buf);
+      } catch (e) {
+        return send(404, { error: '还没有设置背景图' });
+      }
+    }
+    if (p === '/api/wallpaper' && req.method === 'POST') {
+      const dataUrl = String((body && body.dataUrl) || '');
+      const m = /^data:(image\/[a-z+]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+      if (!m) return send(400, { error: '背景图要传 data:image/...;base64,... 形式' });
+      if (WALL_MIME.indexOf(m[1]) < 0) return send(415, { error: '只支持 png / jpeg / webp / gif' });
+      const buf = Buffer.from(m[2], 'base64');
+      if (!buf.length) return send(400, { error: '图片是空的' });
+      if (buf.length > WALL_MAX) return send(413, { error: '背景图超过 6MB，换一张小一点的（页面会自动压一版）' });
+      try {
+        fs.mkdirSync(WALL_DIR, { recursive: true });
+        fs.writeFileSync(WALL_FILE, buf);
+        const meta = { mime: m[1], bytes: buf.length, at: new Date().toISOString() };
+        fs.writeFileSync(WALL_META, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+        const prefs = readPrefs();
+        const appearance = Object.assign({}, prefs.appearance || {});
+        appearance.wallpaper = Object.assign({ name: 'bg.img', mime: m[1], bytes: buf.length }, (body && body.opts) || {});
+        const next = Object.assign({}, prefs, { appearance });
+        fs.writeFileSync(PREFS_FILE, JSON.stringify(next, null, 2) + '\n', 'utf8');
+        return send(200, { ok: true, bytes: buf.length, mime: m[1], appearance });
+      } catch (e) {
+        return send(500, { error: '背景图存不下来：' + ((e && e.message) || e) });
+      }
+    }
+    if (p === '/api/wallpaper' && req.method === 'DELETE') {
+      try {
+        if (fs.existsSync(WALL_FILE)) fs.unlinkSync(WALL_FILE);
+        if (fs.existsSync(WALL_META)) fs.unlinkSync(WALL_META);
+      } catch (e) { /* 删不掉也不致命 */ }
+      const prefs = readPrefs();
+      const appearance = Object.assign({}, prefs.appearance || {});
+      delete appearance.wallpaper;
+      const next = Object.assign({}, prefs, { appearance });
+      try { fs.writeFileSync(PREFS_FILE, JSON.stringify(next, null, 2) + '\n', 'utf8'); } catch (e) { /* 忽略 */ }
+      return send(200, { ok: true, appearance });
     }
 
     // ---------------------------------------------------------------- 界面偏好（存盘，跟盘走）

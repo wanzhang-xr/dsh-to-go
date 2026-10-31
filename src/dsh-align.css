@@ -1,0 +1,275 @@
+/* =============================================================================
+   dsh-align.css —— 把配置页挂到「官方 Web UI 的设计 token」上
+
+   顺序：third_party/dsh-theme/*（官方变量） → legacy.css（老结构） → 本文件（对齐层）
+   本文件做两件事：
+     1) 把本页既有的变量名（--bg/--card/--fg/…）重新指向官方的语义别名
+        （--dsw-alias-bg-layer-1 / --dsw-alias-label-primary / …），
+        这样页面里几千处 var() 不用改，颜色却来自官方调色板；
+     2) 把控件外观（圆角、边框、主按钮、分段导航、输入框、滚动条、焦点环）
+        按官方 Web UI 的观感重写一遍。
+
+   官方深色靠 body[data-ds-dark-theme] 存在与否切换（见 src/app.js 的 applyTheme）。
+   ============================================================================= */
+
+/* ---- 1. 变量对位：本页老名字 → 官方 token ------------------------------- */
+/* ⚠️ 必须写在 body 上：官方的 --dsw-alias-* 只在 body 作用域里有值，
+   写到 :root(html) 会变成「无效值」，继承下去整页变量都空掉。 */
+body {
+  /* 底色与层级 */
+  --bg: var(--dsw-alias-bg-base);
+  --card: var(--dsw-alias-bg-layer-1);
+  --card-2: var(--dsw-alias-bg-layer-2);
+  --primary: var(--dsw-alias-bg-layer-3);
+  --secondary: var(--dsw-alias-interactive-bg-hover-solid);
+
+  /* 文字 */
+  --fg: var(--dsw-alias-label-primary);
+  --muted: var(--dsw-alias-label-secondary);
+
+  /* 线 */
+  --border: var(--dsw-alias-border-l2);
+  --border-strong: var(--dsw-alias-border-l3);
+
+  /* 品牌与状态
+     注意：官方 --dsw-alias-brand-primary 在深色主题下是"近白色"（配深色文字用），
+     直接拿它当按钮/开关的填充色会变成白底白字。所以填充单独用 --brand-fill。 */
+  --brand-fill: var(--accent);
+  --brand-fill-hover: color-mix(in srgb, var(--accent) 86%, var(--dsw-alias-label-primary));
+  --on-accent: #fff;
+  --danger: var(--dsw-alias-state-error-primary);
+  --warn: var(--dsw-alias-state-warn-primary);
+  --ok: var(--dsw-alias-state-success-primary);
+  --code: var(--dsw-alias-markdown-code-block);
+
+  /* 圆角与节奏：官方刻度 4/8/12/16/20/28 */
+  --r: var(--dsw-radius-md);
+  --r-sm: var(--dsw-radius-sm);
+  --r-lg: var(--dsw-radius-lg);
+  --r-panel: var(--dsw-radius-panel);
+  --gap: 14px;
+
+  /* 字体：官方字体栈（系统字体，离线可用） */
+  --font-ui: var(--dsw-font-family);
+  --font-mono: var(--ds-font-family-code);
+  --font-brand: var(--dsw-font-family-brand);
+
+  /* 动效：沿用官方时长与曲线；本页另有 --t-fast/--t/--t-slow */
+  --t-fast: var(--ds-transition-duration-fast);
+  --t: var(--ds-transition-duration);
+  --t-slow: var(--ds-transition-duration-slow);
+  --e-out: var(--ds-ease-in-out);
+  --e-in: var(--ds-ease-in-out);
+}
+
+/* ---- 2. 基础观感 --------------------------------------------------------- */
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 官方那套"超椭圆"圆角：支持的浏览器上，卡片/按钮的圆角更像 squircle */
+@supports (corner-shape: superellipse(1.5)) {
+  .card, .btn, nav button, input, select, textarea, .pill, .badge {
+    corner-shape: var(--dsw-corner-shape);
+  }
+}
+
+/* 顶栏：与页面同色、细分隔线，不再有一块深色底 */
+header {
+  background: var(--dsw-alias-bg-layer-1);
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  padding: 0 16px;
+  min-height: 44px;
+}
+header h1 { font-size: 15px; font-weight: 600; letter-spacing: .1px; }
+header h1 .pill, header .pill { font-size: 11.5px; }
+
+/* 导航：改成分段控件（官方 sidebar/tab 的观感），而不是一排描边按钮 */
+nav {
+  background: var(--dsw-alias-bg-base);
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  padding: 8px 16px;
+  gap: 2px;
+}
+nav button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: var(--dsw-radius-sm);
+  border: 1px solid transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+}
+nav button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+nav button[aria-selected="true"] {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+  border-color: transparent;
+  font-weight: 500;
+}
+nav button[aria-selected="true"]::after { content: none; }   /* 去掉旧的下划线装饰 */
+
+/* 卡片：官方 settings 卡片的填充/描边 */
+.card {
+  background: var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-1));
+  border: 1px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l2));
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+}
+.card h2 { font-size: 14px; font-weight: 600; }
+.card h3 { font-size: 12.5px; color: var(--dsw-alias-label-tertiary); font-weight: 500; }
+
+/* 按钮：官方主按钮是深蓝填充 + 白字；次按钮是描边幽灵 */
+.btn {
+  border-radius: var(--dsw-radius-sm);
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  transition: background var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.btn:hover { background: var(--dsw-alias-interactive-bg-hover); border-color: var(--dsw-alias-border-l3); }
+.btn.primary, .btn[data-kind="primary"] {
+  background: var(--brand-fill);
+  color: var(--on-accent);          /* 填充色是饱和蓝，一律白字；别再用 label-inverted（深色下那是给白底配的深字） */
+  border-color: transparent;
+}
+.btn.primary:hover:not(:disabled), .btn[data-kind="primary"]:hover:not(:disabled) { background: var(--brand-fill-hover); }
+.btn.danger, .btn[data-kind="danger"] {
+  color: var(--dsw-alias-state-error-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 输入框：官方用 layer-2 填充 + 细描边，聚焦时描边变亮而不是发光 */
+input, select, textarea {
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  min-height: 36px;
+  color: var(--dsw-alias-label-primary);
+}
+input:hover, select:hover, textarea:hover { border-color: var(--dsw-alias-border-l3); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--brand-fill);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-fill) 22%, transparent);
+}
+::placeholder { color: var(--dsw-alias-label-tertiary); }
+
+/* 标签文字 */
+label, .sub { color: var(--dsw-alias-label-secondary); }
+label { font-size: 12.5px; }
+
+/* 药丸/徽标 */
+.pill, .badge {
+  border-radius: var(--dsw-radius-xs);
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11.5px;
+  padding: 2px 8px;
+}
+.pill.ok, .badge.ok { color: var(--dsw-alias-state-success-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, transparent); }
+.pill.err, .badge.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent); }
+.pill.warn, .badge.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, transparent); }
+
+/* 表格 / 代码块 */
+table { border-color: var(--dsw-alias-border-l1); }
+th { color: var(--dsw-alias-label-tertiary); font-weight: 500; }
+code, pre {
+  background: var(--dsw-alias-markdown-code-block);
+  border-radius: var(--dsw-radius-sm);
+  font-family: var(--ds-font-family-code);
+}
+
+/* 品牌字样：官方用 Montserrat，没装就回退系统字体（不打包字体文件） */
+.dsh-wordmark {
+  font-family: var(--font-brand);
+  font-weight: 500;
+  letter-spacing: .2px;
+}
+
+/* 链接用官方的 link 蓝 */
+a { color: var(--dsw-alias-link); }
+
+/* 焦点环跟官方一致（focus.css 里的 --dsw-focus-* 若存在就复用） */
+:focus-visible {
+  outline: 2px solid var(--brand-fill);
+  outline-offset: 2px;
+}
+
+/* 深色下把"危险"按钮的红色压一点，避免刺眼 */
+body[data-ds-dark-theme] .btn.danger:hover {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 16%, transparent);
+}
+
+
+/* ---- 开关：统一成 dsh 语义 ----
+   旧样式用 --secondary / --colorNeutralBackground3 当轨道，在深色里偏亮，
+   勾上之后又用 brand-primary（深色下是白的）→ 看着就是一条白膏药。 */
+label.switch .track,
+#tab-sites label.switch .track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+  border: 1px solid var(--dsw-alias-border-l3);
+  box-shadow: none;
+  transition: background var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out);
+}
+label.switch .track::after,
+#tab-sites label.switch .track::after {
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--dsw-alias-label-secondary);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  transition: transform var(--t-fast) var(--e-out), background var(--t-fast) var(--e-out);
+}
+label.switch:hover .track,
+#tab-sites label.switch:hover .track { border-color: var(--dsw-alias-border-l2); }
+label.switch input:checked + .track,
+#tab-sites label.switch input:checked + .track {
+  background: var(--brand-fill);
+  border-color: var(--brand-fill);
+  box-shadow: none;
+}
+label.switch input:checked + .track::after,
+#tab-sites label.switch input:checked + .track::after {
+  background: #fff;
+  transform: translateX(16px);
+}
+label.switch input:focus-visible + .track,
+#tab-sites label.switch input:focus-visible + .track {
+  outline: 2px solid var(--brand-fill);
+  outline-offset: 2px;
+}
+label.switch .txt,
+#tab-sites label.switch .txt { color: var(--dsw-alias-label-secondary); font-size: 12.5px; }
+label.switch input:checked ~ .txt,
+#tab-sites label.switch input:checked ~ .txt { color: var(--dsw-alias-label-primary); }
+label.switch { min-height: 34px; gap: 8px; }
+
+/* 插件页顶部那排"显示哪些"：跟官方一样靠左成组，中间留 16px */
+#tab-plugins .plug-filter,
+#tab-plugins label.switch + label.switch { margin-left: 4px; }
+
+
+/* ---- 窗口变窄时可读性：不跟着缩，反而略放一档（以前窄窗里 12.5px 一片，看着糊） ---- */
+html.w-md, html.w-md body { font-size: 14.5px; }
+html.w-md table, html.w-md .mtable { font-size: 13.5px; }
+html.w-md .pill, html.w-md .steps span, html.w-md label.switch .txt { font-size: 13px; }
+html.w-md h1 { font-size: 18px; }
+html.w-md h2 { font-size: 16px; }
+html.w-sm, html.w-sm body { font-size: 15px; }
+html.w-sm table, html.w-sm .mtable { font-size: 14px; }
+html.w-sm h1 { font-size: 18.5px; }

@@ -12,13 +12,16 @@
 | 组件 | 版本 | 许可证 | 我们分发什么 | 义务与履行方式 |
 |---|---|---|---|---|
 | **Node.js** | v26.7.0 | MIT（详见其自带 `LICENSE`，含 V8 / OpenSSL / ICU / zlib 等捆绑依赖的许可与版权声明） | `runtime/node/node.exe` + `npm`（**不入 git**，`.gitignore` 里的 `runtime/`） | 原样保留 `runtime/node/LICENSE`（Node 官方文件，已随盘）；不从二进制里剥离任何声明 |
-| **Microsoft Edge WebView2 SDK** | 1.0.2903.40 | BSD-3-Clause 风格（Microsoft） | `third_party/webview2/*.dll`（Core / WinForms / WebView2Loader） | 已随仓库保存 `third_party/webview2/LICENSE.txt` 与 `NOTICE.txt`（NuGet 包原文件）；二进制形式再分发时在文档中复现版权与免责声明——即本文件 |
+| **Microsoft Edge WebView2 SDK**（已不再使用，保留在 `third_party/webview2/` 供旧版启动器构建） | 1.0.2903.40 | BSD-3-Clause 风格（Microsoft） | `third_party/webview2/*.dll`（Core / WinForms / WebView2Loader） | 已随仓库保存 `third_party/webview2/LICENSE.txt` 与 `NOTICE.txt`（NuGet 包原文件）；二进制形式再分发时在文档中复现版权与免责声明——即本文件 |
 | **WebView2 Runtime** | 系统自带（如 155.x） | Microsoft 专有，随 Windows/Edge 分发 | **不分发** | 只做"检测 + 启动"，不打包、不改动；缺失时回退 `dsh-ui.cmd` |
 | **Fluent UI Web Components** | 3.1.3 | MIT | `third_party/fluent/fluent.min.js`（IIFE bundle） | 见 `third_party/fluent/LICENSE`（打包时用 `--legal-comments=none`，许可证注释不在 bundle 内，因此在该文件里复现） |
 | **@microsoft/fast-element** | 3.1.2 | MIT | 同上（已打进去） | 同上 |
 | **@fluentui/tokens** | 1.0.0-alpha.24 | MIT | `third_party/fluent/fluent-theme.css`（仅令牌取值，不含源码） | 同上 |
+| **DeepSeek Harness Web UI 设计 token** (`design-platform.css` / `base.css` / `corner-shape.css` / `scrollbar.css` / `focus.css`) | 取自上游 commit `ce7073d` | MIT，`Copyright (c) 2026 DeepSeek` | `third_party/dsh-theme/*.css`（原样复制，未修改） | 许可全文随文件放在 `third_party/dsh-theme/LICENSE`，出处与提交号记在 `SOURCE.json` 与 README；**只复制变量定义这一层，未复制任何 React/TS 组件与 Montserrat 字体** |
 | **dsh 官方图标** | — | MIT（deepseek-ai/deepseek-harness） | `assets/app-icon.svg`、`assets/app.ico` | 来源与许可写在 `assets/app-icon.svg` 头部注释；来源仓库 <https://github.com/deepseek-ai/deepseek-harness> |
-| **.NET Framework 4.8** | 系统组件 | Microsoft 专有 | **不分发** | 只用系统自带 `csc.exe` 编译、运行时用系统自带 4.8；缺则回退 `dsh-ui.cmd` |
+| **Electron** | 44.7.0 | MIT | `runtime/electron/`（**不入 git**，由 `build.cmd` 现场下载：npm 包 + 二进制，共约 383 MB） | 原样保留包内 `LICENSE` 与 `LICENSES.chromium.html`；**这两个文件不许删、不许裁剪**——它们承担 Chromium/Node/V8/ICU 等捆绑依赖的署名义务 |
+| **Chromium（Electron 内置）** | 随 Electron 44 | BSD-3-Clause 等（含大量第三方许可证） | 同上（`LICENSES.chromium.html` 一个文件汇总） | 随包分发 `LICENSES.chromium.html` 即履行；不修改、不裁剪其中任何条目 |
+| **.NET Framework 4.8** | 系统组件 | Microsoft 专有 | **不分发** | 只用于编译/运行根目录那个几百 KB 的 `dsh-to-go.exe` 外壳（`tools/launcher/Shim.cs`，用系统自带 `csc.exe` 编译）；缺则回退 `dsh-ui.cmd` |
 
 ## 二、只在构建期使用（不随盘分发）
 

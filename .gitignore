@@ -13,6 +13,9 @@ VERSION.txt
 tmp/
 *.log
 
+# 桌面壳依赖（build.cmd 现场下载到 runtime/electron；单个应用目录里若有 node_modules 也不入库）
+tools/electron/node_modules/
+
 # 启动器产物（由 build.cmd 现场编译，不进仓库）
 dsh-to-go.exe
 tools/launcher/obj/

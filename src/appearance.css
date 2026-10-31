@@ -48,19 +48,21 @@ html[data-bg="solid"] body::before,
 html[data-bg="solid"] body::after { display: none; }
 
 /* ---------- 主色预设（只换令牌，不动组件样式） ---------- */
+/* 主色改用官方调色板（deepseek / blue 两个 ramp 的浅深两端），
+   不再用绿+靛+青那套——那套跟 dsh 官方 Web UI 的中性灰+蓝不在一个语言里 */
 :root {
-  --accent: #22C55E; --on-accent: #0F172A;
-  --accent-2: #6366F1; --accent-3: #06B6D4;
+  --accent: #5686FE; --on-accent: #FFFFFF;      /* deepseek-450 */
+  --accent-2: #7AAAFF; --accent-3: #4D93F8;     /* deepseek-400 / blue-450 */
 }
 html[data-theme="light"] {
-  --accent: #15803D; --on-accent: #FFFFFF;
-  --accent-2: #4F46E5; --accent-3: #0E7490;
+  --accent: #4176E6; --on-accent: #FFFFFF;      /* deepseek-500 */
+  --accent-2: #5686FE; --accent-3: #2563EB;     /* deepseek-450 / blue-600 */
 }
-html[data-accent="green"]  { --accent: #22C55E; --accent-2: #6366F1; --accent-3: #06B6D4; --on-accent: #0F172A; }
-html[data-accent="blue"]   { --accent: #3B82F6; --accent-2: #06B6D4; --accent-3: #8B5CF6; --on-accent: #04121F; }
-html[data-accent="purple"] { --accent: #A855F7; --accent-2: #6366F1; --accent-3: #EC4899; --on-accent: #12061F; }
-html[data-accent="orange"] { --accent: #F59E0B; --accent-2: #EF4444; --accent-3: #F97316; --on-accent: #1B0F02; }
-html[data-accent="cyan"]   { --accent: #06B6D4; --accent-2: #22C55E; --accent-3: #3B82F6; --on-accent: #03151A; }
+html[data-accent="green"]  { --accent: #22C55E; --accent-2: #4ED17E; --accent-3: #0E7490; --on-accent: #FFFFFF; }
+html[data-accent="blue"]   { --accent: #5686FE; --accent-2: #7AAAFF; --accent-3: #4D93F8; --on-accent: #FFFFFF; }
+html[data-accent="purple"] { --accent: #A855F7; --accent-2: #6366F1; --accent-3: #EC4899; --on-accent: #FFFFFF; }
+html[data-accent="orange"] { --accent: #F59E0B; --accent-2: #EF4444; --accent-3: #F97316; --on-accent: #FFFFFF; }
+html[data-accent="cyan"]   { --accent: #06B6D4; --accent-2: #22C55E; --accent-3: #3B82F6; --on-accent: #FFFFFF; }
 html[data-theme="light"][data-accent="green"]  { --accent: #15803D; --on-accent: #FFFFFF; }
 html[data-theme="light"][data-accent="blue"]   { --accent: #1D4ED8; --on-accent: #FFFFFF; }
 html[data-theme="light"][data-accent="purple"] { --accent: #7E22CE; --on-accent: #FFFFFF; }
@@ -194,3 +196,62 @@ input, select, textarea, pre, code {
   backdrop-filter: none;
 }
 input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transparent) !important; }
+
+/* ---------- 在桌面壳里（Electron）：色斑从标题栏下方才开始 ----------
+   壳的标题栏是另一个 view，画不出页面里的模糊色斑；如果在边界处硬切，
+   就会看到"一条纯色 + 一片渐变"的接缝。所以这里给色斑加个遮罩，
+   让最上面 ~40px 干净地淡出，两侧颜色一致就没有接缝了。 */
+html.dsh-shell body::before,
+html.dsh-shell body::after {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 38px, #000 96px);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent 38px, #000 96px);
+}
+
+
+/* ---- 拖动/缩放窗口期间：把两颗大模糊层的动画停掉、过渡全关 ----
+   浮动的 blur(64px)/blur(72px) 层在窗口持续改变尺寸时每帧都要重算，
+   这是"元素鬼畜"的主因；停手后由壳移除 .dsh-resizing 自动恢复。 */
+html.dsh-resizing *,
+html.dsh-resizing *::before,
+html.dsh-resizing *::after {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+html.dsh-resizing body::before,
+html.dsh-resizing body::after {
+  animation: none !important;
+  will-change: auto;
+}
+html.dsh-resizing .card,
+html.dsh-resizing main section { animation: none !important; }
+
+/* 平时让这些层走合成器，别在 resize 时挤占主线程 */
+body::before, body::after { will-change: transform; transform: translateZ(0); }
+
+
+/* ---- 自定义背景图 ----
+   复用 body::before / ::after 这两层（原来画流体色斑）：
+   ::before 铺图（带模糊），::after 当遮罩（强度由 JS 写 --wall-dim-color）。
+   同一张图也会被桌面壳注入到 dsh 官方界面上，两个视图看起来是一整块背景。 */
+html[data-bg="image"] body::before {
+  inset: calc(var(--wall-blur, 0px) * -2 - 8px);
+  background-image: var(--wallpaper-image, none);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  filter: blur(var(--wall-blur, 0px)) saturate(104%);
+  opacity: 1;
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+html[data-bg="image"] body::after {
+  inset: 0;
+  background: var(--wall-dim-color, rgb(0 0 0 / 35%));
+  filter: none;
+  opacity: 1;
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+html[data-bg="image"] { --card: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 82%, transparent); }

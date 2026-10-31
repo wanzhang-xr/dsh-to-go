@@ -8,7 +8,7 @@ let TOKEN = new URLSearchParams(location.search).get('token') || (location.hash 
    令牌只活在内存里，不落 localStorage / cookie / 历史。 */
 function requestHostToken(timeoutMs) {
   return new Promise((resolve) => {
-    const host = window.chrome && window.chrome.webview;
+    const host = hostBridge();
     if (!host) return resolve(null);
     let done = false;
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
@@ -21,6 +21,16 @@ function requestHostToken(timeoutMs) {
     catch (err) { clearTimeout(timer); finish(null); }
   });
 }
+/* 宿主桥：两套壳共用同一套协议。
+   · WebView2（旧壳 / 浏览器回退）：window.chrome.webview
+   · Electron 壳：window.dshHost（contextBridge 暴露，形状一致）
+   浏览器里两者都没有，页面就当没有宿主。 */
+function hostBridge() {
+  if (window.chrome && window.chrome.webview) return window.chrome.webview;
+  if (window.dshHost) return window.dshHost;
+  return null;
+}
+
 const el = (id) => document.getElementById(id);
 let STATE = null;
 let CURRENT_JOB = null;
@@ -34,13 +44,18 @@ let POLL = null;
 
 /* ---------------------------------------------------------------- 基础请求 */
 async function api(path, body, method) {
+  const empty = body === undefined || (method === 'DELETE' && !Object.keys(body || {}).length);
   const r = await fetch(path, {
     method: method || (body === undefined ? 'GET' : 'POST'),
     headers: { 'Content-Type': 'application/json', 'x-config-token': TOKEN },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: empty ? undefined : JSON.stringify(body),
   });
   const j = await r.json().catch(() => ({ error: '返回不是 JSON' }));
-  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  if (!r.ok) {
+    // 优先用服务端给的 error；没有就把子进程输出尾巴亮出来，别让用户只看到一个 "500"
+    const tail = String(j.text || '').split('\n').map((x) => x.trim()).filter(Boolean).slice(-3).join(' / ');
+    throw new Error(j.error || tail || ('HTTP ' + r.status));
+  }
   return j;
 }
 function flash(id, text, kind) {
@@ -119,10 +134,15 @@ function render(s) {
     ['端口', String(d.port || s.webPort) + (d.startedAt ? '　启动于 ' + esc(d.startedAt) : '')],
   ]);
   // 主操作按运行状态互斥：运行中不该还能点「启动 dsh」，停止后也不该还能点「停止」
-  el('btn-dsh-start').disabled = !!d.running;
+  // 没装 dsh 时启动必然失败（子进程会立刻退出），所以直接禁用并指路，别等人点了才报错
+  const notInstalled = ((s.slot && s.slot.activeVersion) || '') === 'not-installed';
+  el('btn-dsh-start').disabled = !!d.running || notInstalled;
   el('btn-dsh-stop').disabled = !d.running;
   el('btn-dsh-open').disabled = !d.url;
-  el('ov-lock-note').textContent = s.loggedIn ? '' : '启动 dsh 需要先解锁（口令用于把密钥注入 dsh 进程）';
+  el('btn-dsh-start').title = notInstalled ? '活动槽里还没有 dsh：先到「升级」里安装' : '';
+  el('ov-lock-note').textContent = notInstalled && !d.running
+    ? '这台盘上还没装 dsh：先到「升级」里安装，再回来启动。'
+    : (s.loggedIn ? '' : '启动 dsh 需要先解锁（口令用于把密钥注入 dsh 进程）');
 
   rows('ov-slots', [
     ['活动槽', s.slot.active + ' · dsh ' + esc(s.slot.activeVersion)],
@@ -821,34 +841,109 @@ window.addEventListener('resize', () => {
 /* ---------------------------------------------------------------- 外观选项
    背景（流体渐变/纯色）、主色、动效强度；都存在服务端的 data/ui-prefs.json，
    和主题一样跟盘走。换主色只覆盖 CSS 令牌，不改任何组件样式。 */
-const APPEARANCE = { bg: 'fluid', accent: 'green', motion: 'full' };
 const ACCENTS = ["green", "blue", "purple", "orange", "cyan"];
 const MOTIONS = ["full", "calm", "off"];
+const BGS = ["fluid", "solid", "image"];
+
+/** 当前外观（含自定义背景）；统一从这里读，避免各处各写一份导致 wallpaper 被覆盖掉 */
+let AP = { bg: 'fluid', accent: 'green', motion: 'full' };
+
 function currentAppearance() {
-  const h = document.documentElement;
-  return { bg: h.dataset.bg || 'fluid', accent: h.dataset.accent || 'green', motion: h.dataset.motion || 'full' };
+  return { bg: AP.bg, accent: AP.accent, motion: AP.motion, wallpaper: AP.wallpaper };
 }
+
+/** 背景图版本号：换图后要让 url 变，否则浏览器拿缓存那张 */
+function wallUrl(w) {
+  return 'url("/api/wallpaper?v=' + encodeURIComponent((w && (w.at || w.bytes)) || Date.now()) + '")';
+}
+
 function applyAppearance(a, persist) {
   const h = document.documentElement;
-  const bg = a && a.bg === 'solid' ? 'solid' : 'fluid';
-  const accent = ACCENTS.indexOf(a && a.accent) >= 0 ? a.accent : "green";
-  const motion = MOTIONS.indexOf(a && a.motion) >= 0 ? a.motion : "full";
-  h.dataset.bg = bg;
-  h.dataset.accent = accent;
-  h.dataset.motion = motion;
-  if (el('ap-bg')) el('ap-bg').value = bg;
-  if (el('ap-accent')) el('ap-accent').value = accent;
-  if (el('ap-motion')) el('ap-motion').value = motion;
+  if (a) {
+    AP = {
+      bg: BGS.indexOf(a.bg) >= 0 ? a.bg : 'fluid',
+      accent: ACCENTS.indexOf(a.accent) >= 0 ? a.accent : 'green',
+      motion: MOTIONS.indexOf(a.motion) >= 0 ? a.motion : 'full',
+      wallpaper: a.wallpaper || null,
+    };
+  }
+  // 选了图片但盘上其实没有图 → 退回流体渐变，别给一片纯黑
+  if (AP.bg === 'image' && !AP.wallpaper) AP.bg = 'fluid';
+
+  const w = AP.wallpaper || {};
+  const blur = Math.max(0, Math.min(24, Number(w.blur) || 0));
+  const dim = Math.max(0, Math.min(80, Number(w.dim) === 0 ? 0 : (Number(w.dim) || 35)));
+  const dark = h.dataset.theme !== 'light';
+
+  h.dataset.bg = AP.bg;
+  h.dataset.accent = AP.accent;
+  h.dataset.motion = AP.motion;
+  h.style.setProperty('--wall-blur', blur + 'px');
+  h.style.setProperty('--wall-dim-color', dark
+    ? 'rgb(0 0 0 / ' + (dim / 100) + ')'
+    : 'rgb(255 255 255 / ' + (dim / 100) + ')');
+  if (AP.wallpaper) h.style.setProperty('--wallpaper-image', wallUrl(w));
+  else h.style.removeProperty('--wallpaper-image');
+
+  if (el('ap-bg')) el('ap-bg').value = AP.bg;
+  if (el('ap-accent')) el('ap-accent').value = AP.accent;
+  if (el('ap-motion')) el('ap-motion').value = AP.motion;
   if (el('ap-theme')) el('ap-theme').value = h.dataset.theme === 'light' ? 'light' : 'dark';
+  if (el('ap-wall')) el('ap-wall').hidden = AP.bg !== 'image';
+  if (el('ap-wall-clear')) el('ap-wall-clear').hidden = !AP.wallpaper;
+  if (el('ap-wall-dim')) el('ap-wall-dim').value = String(dim);
+  if (el('ap-wall-blur')) el('ap-wall-blur').value = String(blur);
+  if (el('ap-wall-size')) {
+    el('ap-wall-size').textContent = AP.wallpaper
+      ? (AP.wallpaper.bytes ? (Math.round(AP.wallpaper.bytes / 1024) + ' KB · ') : '') + (AP.wallpaper.mime || '')
+      : '';
+  }
   document.querySelectorAll('#launcher-swatches button').forEach((b) => {
-    b.setAttribute('aria-pressed', b.dataset.accent === accent ? 'true' : 'false');
+    b.setAttribute('aria-pressed', b.dataset.accent === AP.accent ? 'true' : 'false');
   });
-  if (persist) api("/api/prefs", { appearance: { bg: bg, accent: accent, motion: motion } }).catch(() => {});
+
+  if (persist) {
+    api("/api/prefs", { appearance: currentAppearance() }).catch(() => {});
+    // 通知桌面壳：dsh 界面那张背景也要跟着换
+    try {
+      const host = hostBridge();
+      if (host) host.postMessage(JSON.stringify({ type: 'dsh.wallpaper' }));
+    } catch (e) { /* 浏览器回退没有宿主 */ }
+  }
 }
+
+/** 把用户选的图片压到最长边 2560 再传，避免 6MB 上限被一张手机原图打爆 */
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 2560;
+      const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      let out = c.toDataURL('image/webp', 0.9);
+      if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/jpeg', 0.9);
+      resolve({ dataUrl: out, w: w, h: h });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('这张图读不出来')); };
+    img.src = url;
+  });
+}
+
 if (el('ap-theme')) {
   el('ap-theme').addEventListener('change', () => { applyTheme(el('ap-theme').value, true); applyAppearance(null, false); });
   const saveAp = () => {
-    applyAppearance({ bg: el("ap-bg").value, accent: el("ap-accent").value, motion: el("ap-motion").value }, true);
+    applyAppearance({
+      bg: el("ap-bg").value,
+      accent: el("ap-accent").value,
+      motion: el("ap-motion").value,
+      wallpaper: AP.wallpaper,
+    }, true);
     if (el('ap-out')) flash('ap-out', '已应用', 'ok');
   };
   el('ap-bg').addEventListener('change', saveAp);
@@ -859,6 +954,55 @@ if (el('ap-theme')) {
     });
   });
   el('ap-motion').addEventListener('change', saveAp);
+
+  // 选背景图
+  if (el('ap-wall-pick')) {
+    el('ap-wall-pick').addEventListener('click', () => el('ap-wall-file').click());
+    el('ap-wall-file').addEventListener('change', async () => {
+      const f = el('ap-wall-file').files && el('ap-wall-file').files[0];
+      if (!f) return;
+      try {
+        if (el('ap-wall-pick')) { el('ap-wall-pick').disabled = true; el('ap-wall-pick').textContent = '处理中…'; }
+        const shrunk = await shrinkImage(f);
+        const r = await api('/api/wallpaper', {
+          dataUrl: shrunk.dataUrl,
+          opts: { dim: Number(el('ap-wall-dim') ? el('ap-wall-dim').value : 35), blur: Number(el('ap-wall-blur') ? el('ap-wall-blur').value : 0) },
+        });
+        AP.wallpaper = (r && r.appearance && r.appearance.wallpaper) || { bytes: Math.round(shrunk.dataUrl.length * 0.75), mime: 'image/webp' };
+        applyAppearance({ bg: 'image', accent: AP.accent, motion: AP.motion, wallpaper: AP.wallpaper }, true);
+        if (el('ap-out')) flash('ap-out', '背景已更新（配置页 + dsh 界面）', 'ok');
+      } catch (e) {
+        if (el('ap-out')) flash('ap-out', '设背景失败：' + (e.message || e), 'bad');
+      } finally {
+        if (el('ap-wall-pick')) { el('ap-wall-pick').disabled = false; el('ap-wall-pick').textContent = '选择图片…'; }
+        if (el('ap-wall-file')) el('ap-wall-file').value = '';
+      }
+    });
+  }
+  if (el('ap-wall-clear')) {
+    el('ap-wall-clear').addEventListener('click', async () => {
+      try {
+        await api('/api/wallpaper', {}, 'DELETE');
+        AP.wallpaper = null;
+        applyAppearance({ bg: 'fluid', accent: AP.accent, motion: AP.motion, wallpaper: null }, true);
+        if (el('ap-out')) flash('ap-out', '背景已移除', 'ok');
+      } catch (e) {
+        if (el('ap-out')) flash('ap-out', '移除失败：' + (e.message || e), 'bad');
+      }
+    });
+  }
+  // 遮罩 / 模糊：拖动即生效，松手存盘
+  ['ap-wall-dim', 'ap-wall-blur'].forEach((id) => {
+    if (!el(id)) return;
+    el(id).addEventListener('input', () => {
+      AP.wallpaper = Object.assign({}, AP.wallpaper || {}, {
+        dim: Number(el('ap-wall-dim').value),
+        blur: Number(el('ap-wall-blur').value),
+      });
+      applyAppearance(null, false);
+    });
+    el(id).addEventListener('change', () => applyAppearance(Object.assign({}, currentAppearance()), true));
+  });
 }
 
 /* ---------------------------------------------------------------- 自绘标题栏
@@ -869,7 +1013,7 @@ if (el('ap-theme')) {
      2) 告诉宿主「从哪一列开始属于交互区」——右边是按钮，左边才是可拖动的空白。 */
 function initTitlebar() {
   const bar = el('titlebar');
-  const host = window.chrome && window.chrome.webview;
+  const host = hostBridge();
   if (!bar || !host) return;
   el('tb-ctl').hidden = false;
   const post = (msg) => { try { host.postMessage(msg); } catch (e) { /* 宿主不在 */ } };
@@ -914,6 +1058,7 @@ function initTitlebar() {
   if (window.ResizeObserver) new ResizeObserver(syncHit).observe(bar);
 }
 initTitlebar();
+installResponsive();   // 宽度分档（死区，避免拖动时元素闪断）
 
 /* ---------------------------------------------------------------- 主题
    深/浅两套皮肤只靠 CSS 变量切换（html[data-theme]），组件样式不用动。
@@ -922,21 +1067,50 @@ initTitlebar();
 function applyTheme(theme, persist) {
   const t = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = t;
+  // 官方 Web UI 的设计 token 用 body[data-ds-dark-theme] 切换深色（深色时存在该属性），
+  // 这里跟 html[data-theme] 一起维护，页面里那套变量才会真正跟着变。
+  if (document.body) {
+    if (t === 'dark') document.body.setAttribute('data-ds-dark-theme', '');
+    else document.body.removeAttribute('data-ds-dark-theme');
+  }
   const label = el('btn-theme-label');
   if (label) label.textContent = t === 'light' ? '深色' : '浅色';
   const b = el('btn-theme');
   if (b) b.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
   try {
-    if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage({ type: 'dsh.theme', theme: t });
+    const hb = hostBridge();
+    if (hb) hb.postMessage({ type: 'dsh.theme', theme: t });
   } catch (e) { /* 浏览器回退路径没有宿主 */ }
   if (persist) api('/api/prefs', { theme: t }).catch(() => {});
 }
+/** 宽度分档（带死区）：替代 @media 在断点附近反复闪断 */
+function installResponsive() {
+  const RULES = [['w-md', 1180], ['w-sm', 1040]];
+  const on = {};
+  let t = null;
+  const apply = () => {
+    const w = window.innerWidth;
+    for (const [name, th] of RULES) {
+      const cur = !!on[name];
+      const next = cur ? w < th + 24 : w < th - 10;   // 死区 34px
+      if (next !== cur) {
+        on[name] = next;
+        document.documentElement.classList.toggle(name, next);
+      }
+    }
+  };
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(apply, 40); });
+  apply();
+}
+
 async function loadTheme() {
   let saved = 'dark';
   let appearance = null;
   try {
     const p = await api('/api/prefs');
     if (p && (p.theme === 'light' || p.theme === 'dark')) saved = p.theme;
+    // 自适应：页面自己按系统的 prefers-color-scheme 解析（桌面壳里壳会再推一次实际值）
+    else if (p && p.theme === 'auto') saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
     if (p && p.appearance) appearance = p.appearance;
   } catch (e) { /* 老服务没有这个接口 */ }
   applyTheme(saved, false);

@@ -1,5 +1,11 @@
 # 启动器（Launcher）：原生窗口入口 + Fluent 2 配置页
 
+> ⚠️ **本文是 2026-10-18 的蓝图，现役实现已经不是它描述的样子**：窗口外壳从
+> WinForms + WebView2 换成了 **Electron**（`tools/electron/`），配置页与 dsh 官方 Web UI
+> 同时嵌在同一个窗口的两个 `WebContentsView` 里，视觉也改成挂在 dsh 官方设计 token 上。
+> 现役实现的要点见 `AGENTS.md` 第 12 节，决策背景见 `docs/adr/0002-electron-desktop-shell.md`。
+> 下文保留作历史记录（令牌桥、关窗语义、红线这些约定仍然有效，只是换了个宿主）。
+>
 > 状态：蓝图已冻结（2026-10-18），按 `.scratch/launcher/issues/` 的棒次实施。
 > 术语以 `AGENTS.md` 为准（槽位 / 覆盖层 / 条目 / 插件目录 / 拔盘守护），本文不另造词。
 

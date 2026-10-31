@@ -14,3 +14,8 @@
 *.ico binary
 *.png binary
 ui/app.html text eol=lf
+
+# 第三方设计 token：保持与上游逐字节一致（LF）
+third_party/dsh-theme/*.css text eol=lf
+third_party/dsh-theme/LICENSE text eol=lf
+.gitattributes text eol=lf

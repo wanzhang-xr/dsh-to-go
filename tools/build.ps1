@@ -127,6 +127,48 @@ if (Test-Path $launcherCmd) {
   }
 }
 
+# ---- 3.7 桌面壳：Electron 运行时（约 368 MB，缺了才下；失败就回退浏览器入口）----
+$ElectronDir = Join-Path $Runtime 'electron'
+$ElectronExe = Join-Path $ElectronDir 'dist\electron.exe'
+$ElectronVer = '44.7.0'
+if (Test-Path $ElectronExe) {
+  Say ('已有 Electron 运行时：' + $ElectronVer)
+} else {
+  $npmCli = Join-Path $NodeDir 'node_modules\npm\bin\npm-cli.js'
+  if (-not (Test-Path $npmCli)) {
+    Say '⚠ 便携 Node 里没有 npm，跳过 Electron（dsh-to-go.exe 会回退到浏览器入口）'
+  } else {
+    New-Item -ItemType Directory -Force -Path $ElectronDir | Out-Null
+    $pkg = Join-Path $ElectronDir 'package.json'
+    if (-not (Test-Path $pkg)) { '{"name":"dsh-to-go-runtime","private":true}' | Set-Content -Encoding ASCII -Path $pkg }
+    Say '下载 Electron 包（npm，约 15 MB）…'
+    $oldReg = $env:npm_config_registry
+    $oldCache = $env:npm_config_cache
+    $env:npm_config_registry = 'https://registry.npmmirror.com'
+    $env:npm_config_cache = (Join-Path $Runtime 'npm-cache')
+    & $NodeExe $npmCli 'install' "electron@$ElectronVer" '--no-audit' '--no-fund' '--prefix' $ElectronDir
+    $env:npm_config_registry = $oldReg
+    $env:npm_config_cache = $oldCache
+    if ($LASTEXITCODE -ne 0) {
+      Say '⚠ Electron 包下载失败；dsh-to-go.exe 会回退到浏览器入口'
+    } else {
+      $inst = Join-Path $ElectronDir 'node_modules\electron\install.js'
+      if (Test-Path $inst) {
+        Say '下载 Electron 二进制（镜像，约 368 MB）…'
+        $oldMirror = $env:ELECTRON_MIRROR
+        $env:ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/'
+        & $NodeExe $inst
+        $env:ELECTRON_MIRROR = $oldMirror
+      }
+      if (Test-Path $ElectronExe) {
+        Say '桌面壳就绪：runtime\electron\dist\electron.exe'
+      } else {
+        Say '⚠ Electron 二进制没到位；dsh-to-go.exe 会回退到浏览器入口'
+      }
+    }
+  }
+}
+
 # ---- 4. 默认交给图形向导；-Cli 才走命令行整套安装 ----
 if ($Cli) {
   $install = Join-Path $Target 'tools\install.js'

@@ -15,6 +15,10 @@ function emit(data) {
 }
 
 function postMessage(msg) {
+  // 页面既可能传对象，也可能传 JSON 字符串（WebView2 那条路径习惯传字符串），都收
+  if (typeof msg === 'string') {
+    try { msg = JSON.parse(msg); } catch (e) { return; }
+  }
   if (!msg || typeof msg !== 'object') return;
   const type = String(msg.type || '');
   if (type === 'dsh.token.request') {

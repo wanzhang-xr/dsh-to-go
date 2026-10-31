@@ -68,7 +68,8 @@ let section = 'overview';      // 配置页当前分区（导航搬到了标题�
 let theme = 'dark';            // 解析后的实际主题（dark/light），三个面共用
 let themeMode = 'dark';        // 用户选择：dark / light / auto（自适应跟系统）
 let tray = null;
-let reallyQuit = false;        // 托盘菜单点「退出」时置位，跳过「隐藏到托盘」那套
+let reallyQuit = false;
+let _lastStatusSig = '';   // 只在状态变化时打日志，避免每 3 秒刷屏        // 托盘菜单点「退出」时置位，跳过「隐藏到托盘」那套
 let confirmingClose = false;
 let keepDsh = false;
 
@@ -804,6 +805,15 @@ app.whenReady().then(async () => {
         }, 1500);
       }
 
+      // 自检：DSH_SELFTEST_CLICKOPEN=1 真点页面那颗「打开 dsh 界面」（全链路：page → preload → ipc）
+      if (process.env.DSH_SELFTEST_CLICKOPEN) {
+        setTimeout(() => {
+          configView.webContents.executeJavaScript(
+            "(() => { const b = document.getElementById('btn-dsh-open'); if (!b) return 'no-button'; b.click(); return 'clicked disabled=' + b.disabled; })()"
+          ).then((r) => log('selftest clickopen: ' + r)).catch((e) => log('selftest clickopen failed: ' + e.message));
+        }, 2500);
+      }
+
       // 自检：DSH_SELFTEST_ACTIVATE=1 触发一次"页面点打开界面"的 IPC（走同一条 handler）
       if (process.env.DSH_SELFTEST_ACTIVATE) {
         setTimeout(() => { try { ipcMain.emit('dsh:activate'); } catch (e) { log('selftest activate failed: ' + e.message); } }, 1500);
@@ -863,6 +873,8 @@ app.whenReady().then(async () => {
       if (!token || !cfgPort) return;
       const r = await httpLocal('GET', '/api/state');
       const st = (r.json && r.json.dsh) || {};
+      const sig = [!!st.running, st.pid || 0, st.url ? 'url' : 'nourl', st.urlUnknown ? 'unknown' : ''].join('|');
+      if (sig !== _lastStatusSig) { _lastStatusSig = sig; log('status: ' + sig); }
       const slot = (r.json && r.json.slot && r.json.slot.active) || '';
       try {
         shellView.webContents.send('shell:status', {

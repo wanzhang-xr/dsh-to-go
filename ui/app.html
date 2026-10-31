@@ -7921,7 +7921,7 @@ el('btn-dsh-open').addEventListener('click', () => {
   // （直接 window.open 会被壳的窗口白名单拦掉，用户看到的就是"点了没反应"）
   const host = hostBridge();
   if (host) {
-    try { host.postMessage(JSON.stringify({ type: 'dsh.activate' })); return; } catch (e) { /* 落回浏览器 */ }
+    try { host.postMessage({ type: 'dsh.activate' }); return; } catch (e) { /* 落回浏览器 */ }
   }
   window.open(d.url, '_blank', 'noopener');
 });
@@ -8483,7 +8483,7 @@ function applyAppearance(a, persist) {
     // 通知桌面壳：dsh 界面那张背景也要跟着换
     try {
       const host = hostBridge();
-      if (host) host.postMessage(JSON.stringify({ type: 'dsh.wallpaper' }));
+      if (host) host.postMessage({ type: 'dsh.wallpaper' });
     } catch (e) { /* 浏览器回退没有宿主 */ }
   }
 }

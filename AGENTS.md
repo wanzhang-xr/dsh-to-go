@@ -252,7 +252,46 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
 - 行为变更（改了流程/API/页面/退出码）同步更新 `docs/ROADMAP.md` 的记录表。
 - 运行产物（`runtime/`、`data/`、`secrets/`、`backups/`、`*.enc`）已在 `.gitignore` 里，**不要**为了「方便复现」提交它们。
 
-## 12. 启动器与 Fluent 页面（改这两块前必读）
+## 12. 桌面端（Electron 壳）与页面（改这两块前必读）
+
+> **现役实现已从 WinForms + WebView2 换成 Electron**（2026-10）。旧实现 `tools/launcher/DshLauncher.cs`
+> 与 `third_party/webview2/` 留在仓库里备查/回退构建，不再走主路径；`dsh-to-go.exe` 现在是
+> `tools/launcher/Shim.cs` 编译出来的**外壳**（几百 KB），负责拉起 Electron 并在缺 Electron 时回退 `dsh-ui.cmd`。
+
+- **三层结构（对齐上游 `deepseek-ai/deepseek-harness/apps/desktop` 的思路）**：
+  壳 `tools/electron/main.js`（窗口 / 三个 `WebContentsView` / 主题 / 托盘 / 关窗流程）·
+  后端 `tools/ui-server.js` + dsh（不改上游）· 界面 `配置页` + `dsh 官方 Web UI` 两个视图。
+- **窗口与顶栏**：无边框，顶栏 54px（`tools/electron/shell.html` 的 `--bar-h` 必须和 `main.js` 的 `SHELL_H` 一致）。
+  顶栏里放：品牌 + 六个分区 + `dsh 界面` 标签 + dsh 运行状态 chip + 端口 + 主题按钮 + 三颗窗口按钮。
+  **页面那排 `nav` 在壳里会被隐藏**（`insertCSS`），分区切换由壳驱动、页面回报高亮。
+- **窄窗口让位用 JS 分档（`body.lv1..lv5`），不要用 `@media`**：`@media` 在拖动跨断点时会反复闪断。
+- **主题是一条线**：`applyTheme(mode)` 同时改 壳顶栏 / 配置页 / dsh 界面，并同步 `nativeTheme.themeSource`；
+  `mode` 有 `dark|light|auto`（自适应跟系统，`nativeTheme.on('updated')` 会再打一次）。
+  dsh 界面靠 `body[data-ds-dark-theme]`，页面靠 `html[data-theme]` + 同名 body 属性。
+- **令牌不进 URL**：壳用 `session.onBeforeSendHeaders` 只对 `http://127.0.0.1:<cfgPort>/*` 注入 `x-config-token`；
+  页面走 `dsh.token.request` 桥（`preload-config.js` 用 `contextBridge` 复刻 `window.chrome.webview` 的形状，
+  暴露名是 `dshHost` —— **不能叫 `chrome`**，Chromium 已占只读属性，暴露会抛异常把整个 preload 打断）。
+- **窄窗字号**：`applyZoom()` 按窗口宽度给配置页 1.00/1.02/1.08/1.14 四档（带 24px 死区 + 180ms 防抖），
+  拖动中挂 `html.dsh-resizing` 暂停大模糊层动画与全部过渡——**这是"拖动鬼畜"的根治点**，别删。
+- **关窗/托盘语义**：`win.on('close')` 弹三选一（完全退出 / 最小化到托盘 / 取消，默认停在最小化）；
+  `win.on('minimize')` 直接 `preventDefault` + `hide()` 收进托盘；托盘菜单走同一条确认流程。
+- **占位页要点**：dsh 未安装时 `dshView` 必须加载 `blank-dsh.html`。**没有文档的 WebContents 没有 renderer，
+  `executeJavaScript` 会永远挂着**（主题/背景注入全部失效），这是踩过的坑。
+- **自定义背景**：`data/wallpaper/bg.img` + `data/ui-prefs.json` 里的 `appearance.wallpaper{dim,blur}`；
+  接口 `POST/GET/DELETE /api/wallpaper`（上传走 data URL，前端 canvas 先压到最长边 2560）；
+  壳把同一张图取成 data URL 后**注入 `<style>`** 到 dsh 界面（不用 `insertCSS`，它在某些页面状态下不 resolve）。
+- **自检/调试开关（都是环境变量，平时不生效）**：`DSH_SELFTEST_CLOSE=tray|quit|cancel`（跳过弹窗直接走某条关窗分支）、
+  `DSH_SELFTEST_THEME=dark|light|auto`、`DSH_CSS_PROBE="sel1|sel2"`（打印这些选择器的计算样式与关键 token 值）、
+  `DSH_CSS_RULES="substr"`（打印匹配的样式规则，排查"谁把它盖住了"）。
+- **颜色别直接挂官方 `brand-primary` 当填充**：官方 `--dsw-alias-brand-primary` 在深色下是**近白色**
+  （配深色文字用的）。填充一律走 `--brand-fill`（`src/dsh-align.css`），字走 `--on-accent`（白）。
+- **对齐层（`src/dsh-align.css`）由 `tools/ui-build.js` 注入在 `<body>` 末尾**，不是 `<head>`——
+  各 partial 自带 `<style>`，放在 head 会被它们的 ID 选择器盖掉。
+
+---
+
+## 12.1 旧实现（WinForms + WebView2，仅备查）
+
 
 - **启动器是什么**：`tools\launcher\DshLauncher.cs`，WinForms + WebView2，用系统自带的
   `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` 编译（不需要 .NET SDK）。

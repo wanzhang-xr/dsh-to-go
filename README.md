@@ -110,25 +110,32 @@ dsh-to-go\
 间隔和次数可以用环境变量调（进程内 `WZD_DRIVE_POLL_MS` / `WZD_DRIVE_MISSES`，不会写进系统）。
 **注意**：守护只能发现「读不到」，发现不了「盘还在但写入失败」（比如半接触不良）——那种情况 dsh 自己会报错。
 
-## 启动器（原生窗口）
+## 桌面端（原生窗口）
 
-双击 `dsh-to-go.exe` 就是一个应用窗口：里面是配置页，没有地址栏、没有浏览器工具栏。
+双击 `dsh-to-go.exe` 就是一个应用窗口：里面**同时嵌了配置页和 dsh 官方 Web UI**，两个标签一键切换，
+没有地址栏、没有浏览器工具栏。
 
-- **它是怎么起的**：启动器起本地服务（隐藏控制台）、自动挑一个空闲端口、从输出里抓本次运行的令牌，
-  开窗后通过 WebView2 的消息桥把令牌交给页面。**令牌不进地址栏、不进历史、不进窗口标题、不进日志。**
-- **关窗时**：dsh 在跑就问一次「要不要连 dsh 一起停掉」——默认停掉；勾上「让 dsh 继续在后台运行」就留着。
-  没解锁时停不了（停止操作需要口令），窗口会如实告诉你 dsh 还在跑。
-- **不泄露密钥**：口令只在页面里输入、只存在服务进程内存；启动器不保存任何凭据（没有「记住口令」）；
-  页面只显示密钥长度占位；WebView2 的开发者工具、右键菜单、浏览器快捷键、密码保存、自动填充全部关闭；
-  窗口只能停留在 `127.0.0.1`，外链导航会被拦下。验收脚本是 `tests/redline-audit.js`。
+- **它是怎么起的**：根目录的 `dsh-to-go.exe` 只是个几百 KB 的外壳（`tools/launcher/Shim.cs`，系统自带 `csc.exe` 编译），
+  它拉起 `runtime\electron\dist\electron.exe` 跑桌面壳（`tools/electron/`）。壳自己起本地服务（隐藏控制台）、
+  挑空闲端口、从输出里抓本次运行的令牌，开窗后**按请求头**把令牌交给配置页。
+  **令牌不进地址栏、不进 URL、不进历史、不进窗口标题、不进日志。**
+- **界面就是 dsh 的样子**：视觉全部挂在 dsh 官方 Web UI 的设计 token 上（`third_party/dsh-theme/`，
+  钉在上游 commit `ce7073d`），配置页与 dsh 界面共用同一套配色、圆角、动效曲线，深色/浅色/跟随系统三态一致。
+- **关窗时**三选一：**完全退出**（默认顺带停掉 dsh，可勾「让 dsh 继续在后台运行」）／**最小化到托盘**／**取消**。
+  最小化按钮也是收进托盘（`assets/app.ico` 托盘图标：显示窗口 / 收进托盘 / 打开 dsh 界面 / 退出），任务栏不留条目。
+- **自定义背景**：可以放一张自己的图（`data\wallpaper\`），配置页和 dsh 界面用的是**同一张**；
+  遮罩与模糊可调。选择存 `data\ui-prefs.json`，换盘带走。
+- **不泄露密钥**：口令只在页面里输入、只存在服务进程内存；外壳不保存任何凭据（没有「记住口令」）；
+  页面只显示密钥长度占位；开发者工具、右键菜单、浏览器快捷键、密码保存、自动填充全部关闭；
+  dsh 界面只允许停留在 `127.0.0.1`，外链导航与 `NewWindowRequested` 一律拦下。验收脚本是 `tests/redline-audit.js`。
 - **不碰宿主机**：运行期只往盘内写（`data\`、`runtime\`、`backups\`）；不写注册表、不写环境变量、
   不装服务与计划任务。唯一例外是 dsh 子进程的临时目录（默认宿主 `%LOCALAPPDATA%\Temp`，
   因为 ACL 沙箱要 `WRITE_OWNER`），可用 `runtime\usb-temp.txt` 切回盘内。
   细节见 [`docs/PORTABILITY.md`](docs/PORTABILITY.md)，守卫脚本是 `tests/portability-audit.js`。
-- **第三方许可证**：随盘分发的 Node.js、WebView2 SDK、Fluent UI/FAST、dsh 图标各自许可与声明
-  集中在 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)（对应的 LICENSE 文本也放在组件目录里）。
-- **缺东西时**：没有 `runtime\node` → 窗口里显示「请先跑 build.cmd」；缺 WebView2 / .NET Framework
-  → 自动改走 `dsh-ui.cmd` 用浏览器打开，不会打不开。
+- **第三方许可证**：随盘分发的 Node.js、**Electron（含 Chromium，必须保留 `LICENSES.chromium.html`）**、
+  Fluent UI/FAST、dsh 设计 token 与图标各自的许可与声明集中在 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。
+- **缺东西时**：没有 `runtime\node` → 窗口里显示「请先跑 build.cmd」；没有 `runtime\electron`
+  → `dsh-to-go.exe` 自动改走 `dsh-ui.cmd`，用系统浏览器打开配置页，功能不缺，只是没有原生窗口。
 
 ## 密钥是怎么保住的
 

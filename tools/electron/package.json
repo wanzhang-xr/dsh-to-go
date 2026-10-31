@@ -1,0 +1,8 @@
+{
+  "name": "dsh-to-go-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "dsh-to-go 的桌面壳：把配置页与 dsh Web UI 一起嵌进一个原生窗口",
+  "license": "MIT",
+  "main": "main.js"
+}

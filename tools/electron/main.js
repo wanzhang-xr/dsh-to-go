@@ -198,15 +198,25 @@ function dshUrl() {
   return String(info.url);
 }
 
-function loadDshView() {
+/** 兜底：直接问 ui-server 要 dsh 的地址（dsh-info.json 可能没写、或上一个服务实例清掉了） */
+function dshUrlFromState() {
+  return httpLocal('GET', '/api/state').then((r) => {
+    const u = r.json && r.json.dsh && r.json.dsh.url;
+    if (!u) return null;
+    if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/)/i.test(String(u))) return null;
+    return String(u);
+  }).catch(() => null);
+}
+
+async function loadDshView(force) {
   if (!dshView) return;
-  const url = dshUrl();
+  const url = dshUrl() || (await dshUrlFromState());
   if (!url) {
     dshView.webContents.loadFile(path.join(__dirname, 'blank-dsh.html')).catch(() => {});
     return;
   }
   const current = dshView.webContents.getURL();
-  if (current && current.split('#')[0] === url.split('#')[0]) return;
+  if (!force && current && current.split('#')[0] === url.split('#')[0]) return;
   dshView.webContents.loadURL(url).catch((e) => log('load dsh ui failed: ' + e.message));
   log('dsh view -> ' + url.replace(/token=[^&]+/, 'token=***'));
 }
@@ -277,7 +287,7 @@ function createViews() {
       }
     });
     wc.setWindowOpenHandler(({ url }) => {
-      log('window open blocked: ' + url);
+      log('window open blocked: ' + String(url).replace(/token=[^&]+/, 'token=***'));
       return { action: 'deny' };
     });
   };
@@ -695,7 +705,14 @@ function wireIpc() {
     else if (action === 'max') { if (win.isMaximized()) win.unmaximize(); else win.maximize(); sendWinState(); }
     else if (action === 'close') win.close();
   });
-  ipcMain.on('shell:reload-web', () => { if (dshView) loadDshView(); });
+  ipcMain.on('shell:reload-web', () => { if (dshView) loadDshView(true); });
+
+  // 配置页上点「打开 dsh 界面」：壳内部切标签 + 加载，不再走 window.open（会被窗口白名单拦掉）
+  ipcMain.on('dsh:activate', () => {
+    log('activate dsh view (from page)');
+    switchTab('web');
+    loadDshView(true).catch((e) => log('load dsh view failed: ' + (e && e.message)));
+  });
 }
 
 // ---------------------------------------------------------------- 生命周期
@@ -787,6 +804,11 @@ app.whenReady().then(async () => {
         }, 1500);
       }
 
+      // 自检：DSH_SELFTEST_ACTIVATE=1 触发一次"页面点打开界面"的 IPC（走同一条 handler）
+      if (process.env.DSH_SELFTEST_ACTIVATE) {
+        setTimeout(() => { try { ipcMain.emit('dsh:activate'); } catch (e) { log('selftest activate failed: ' + e.message); } }, 1500);
+      }
+
       // 自检：DSH_SELFTEST_THEME=dark|light|auto 直接切主题，验证解析结果
       if (process.env.DSH_SELFTEST_THEME) {
         setTimeout(() => applyTheme(process.env.DSH_SELFTEST_THEME), 500);
@@ -850,6 +872,14 @@ app.whenReady().then(async () => {
           reachable: r.code === 200,
         });
       } catch (e) { /* 壳还没加载好 */ }
+
+      // dsh 起来了，但视图还停在占位页 → 自动接上（以前要点一下标签才加载）
+      if (st.running) {
+        try {
+          const cur = dshView.webContents.getURL() || '';
+          if (!cur || cur.indexOf('blank-dsh.html') >= 0) loadDshView().catch(() => {});
+        } catch (e) { /* 忽略 */ }
+      }
     };
     pushStatus();
     setInterval(pushStatus, 3000).unref();

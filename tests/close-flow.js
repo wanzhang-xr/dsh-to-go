@@ -106,8 +106,15 @@ async function scenario(name, choice, check) {
     log = readLog();
     if (/close: 用户选择完全退出/.test(log)) ok('走了退出分支');
     else bad('走了退出分支', log.split('\n').slice(-3).join(' | '));
-    if (/ui-server stopped/.test(log)) ok('ui-server 被停掉');
-    else bad('ui-server 被停掉', log.split('\n').slice(-3).join(' | '));
+    // dsh 在跑时这条路径要多等（先尝试停 dsh，再收服务），轮询别用固定时长
+    let stopped = '';
+    for (let i = 0; i < 50; i++) {
+      stopped = readLog();
+      if (/ui-server stopped/.test(stopped)) break;
+      await sleep(200);
+    }
+    if (/ui-server stopped/.test(stopped)) ok('ui-server 被停掉');
+    else bad('ui-server 被停掉', stopped.split('\n').slice(-3).join(' | '));
     let left = electronCount();
     for (let i = 0; i < 25 && left > 0; i++) { await sleep(200); left = electronCount(); }
     if (!left) ok('壳已退出');

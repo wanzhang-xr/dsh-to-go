@@ -29,6 +29,11 @@ function postMessage(msg) {
     ipcRenderer.send('dsh:theme', msg.theme === 'light' ? 'light' : 'dark');
     return;
   }
+  // 页面点「打开 dsh 界面」：交给壳切标签 + 加载（window.open 会被窗口白名单拦掉）
+  if (type === 'dsh.activate') {
+    ipcRenderer.send('dsh:activate');
+    return;
+  }
   // 换了/删了自定义背景：让壳把同一张图同步到 dsh 界面
   if (type === 'dsh.wallpaper') {
     ipcRenderer.send('dsh:wallpaper');

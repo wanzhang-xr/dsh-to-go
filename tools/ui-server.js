@@ -133,6 +133,19 @@ function portListening(port) {
   portCache = { at: now, port, value };
   return value;
 }
+/** 端口上的监听进程 PID（拿不到就 null）。用于认出"不是本服务起的、但确实在跑的 dsh"。 */
+function pidOnPort(port) {
+  try {
+    const ns = String(spawnSync('netstat', ['-ano'], { encoding: 'utf8' }).stdout || '');
+    for (const line of ns.split(/\r?\n/)) {
+      if (!line.includes(':' + port + ' ') || !/LISTENING/i.test(line)) continue;
+      const m = /\s(\d+)\s*$/.exec(line);
+      if (m) return Number(m[1]);
+    }
+  } catch (e) { /* 忽略 */ }
+  return null;
+}
+
 // ------------------------------------------------------------------ 版本列表
 // 版本号比较：先比数字段，再比预发布段（alpha.10 > alpha.9，正式版 > 预发布版）。
 function cmpVersion(a, b) {
@@ -269,14 +282,31 @@ function dshStatus() {
   const info = readDshInfo() || {};
   const webPort = readPort();
   const mine = dshChild && dshChild.exitCode === null;
-  const alive = mine || pidAlive(info.pid);
+  let alive = mine || pidAlive(info.pid);
   const listening = portListening(webPort);
+
+  // 端口在监听、但我们既没起它、info 也没了（比如上一个 ui-server 实例起的 dsh 还活着）：
+  // 认一下端口上的进程，确认它确实是 dsh 才算"在跑"，避免把别的程序当成 dsh。
+  let foreign = false;
+  if (listening && !alive) {
+    const portPid = pidOnPort(webPort);
+    const cmd = pidCommandLine(portPid);
+    if (portPid && /launch\.js|@deepseek-ai|dsh/i.test(cmd)) {
+      alive = true;
+      foreign = true;
+      info.pid = portPid;
+    }
+  }
+
   return {
-    running: !!(alive && listening) || (listening && pidAlive(info.pid)),
+    running: !!(alive && listening),
     startedByThisProcess: !!mine,
     pid: alive ? (mine ? dshChild.pid : info.pid) : null,
     port: webPort,
+    // 不是本次启动的 dsh，我们拿不到它带令牌的地址 → 如实告诉页面"地址未知"
     url: listening ? (info.url || null) : null,
+    urlUnknown: !!(alive && listening && !info.url),
+    foreign: foreign,
     startedAt: info.startedAt || null,
   };
 }

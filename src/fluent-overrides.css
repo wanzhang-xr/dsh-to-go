@@ -221,7 +221,7 @@ fluent-switch, fluent-tabs, fluent-tab, fluent-card, fluent-dialog, fluent-badge
 fluent-progress-bar, fluent-spinner, fluent-tooltip, fluent-accordion, fluent-accordion-item {
   --accent-fill-rest: var(--colorBrandBackground);
   --accent-fill-hover: var(--colorBrandBackgroundHover);
-  --accent-foreground-rest: var(--colorBrandForeground1);
+  --accent-foreground-rest: var(--on-accent);
   --neutral-foreground-rest: var(--colorNeutralForeground1);
   --neutral-foreground-hint: var(--colorNeutralForeground3);
   --neutral-fill-rest: var(--colorNeutralBackground1);
@@ -357,3 +357,55 @@ header h1 .app-title { flex: 0 0 auto; }
 header h1 .sub { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header h1 .pill { flex: 0 0 auto; }
 header .hdr-actions { flex: 0 0 auto; }
+
+/* ===========================================================================
+   设计语言切换：Fluent 令牌 → dsh 官方语义别名
+   ---------------------------------------------------------------------------
+   本文件前面的 :root 块是 Fluent 2 的字面值（历史遗留，留作兜底）。
+   这里在 body 上把它们重新指向官方 token，于是：
+     · 页面元素（用 --colorNeutral* 的那些）→ 官方灰阶
+     · fluent-* 组件（shadow DOM 只能吃令牌）→ 官方灰阶/品牌色/圆角
+   ⚠️ 必须写在 body：--dsw-alias-* 是官方定义在 body 作用域的，写到 :root 会变无效值。
+   =========================================================================== */
+body {
+  --colorNeutralBackground1: var(--dsw-alias-bg-layer-1);
+  --colorNeutralBackground2: var(--dsw-alias-bg-layer-2);
+  --colorNeutralBackground3: var(--dsw-alias-bg-base);
+  --colorNeutralBackground4: var(--dsw-alias-bg-layer-3);
+  --colorNeutralForeground1: var(--dsw-alias-label-primary);
+  --colorNeutralForeground2: var(--dsw-alias-label-secondary);
+  --colorNeutralForeground3: var(--dsw-alias-label-tertiary);
+  --colorNeutralForeground4: var(--dsw-alias-label-dimmed);
+  --colorNeutralStroke1: var(--dsw-alias-border-l3);
+  --colorNeutralStroke2: var(--dsw-alias-border-l2);
+  --colorNeutralStroke3: var(--dsw-alias-border-l1);
+  --colorNeutralStrokeAccessible: var(--dsw-alias-label-tertiary);
+
+  --colorBrandBackground: var(--brand-fill);
+  --colorBrandBackgroundHover: var(--brand-fill-hover);
+  --colorBrandForeground1: var(--brand-fill);
+  --colorBrandStroke1: var(--brand-fill);
+
+  --colorStatusSuccessForeground1: var(--dsw-alias-state-success-primary);
+  --colorStatusDangerForeground1: var(--dsw-alias-state-error-primary);
+  --colorStatusWarningForeground1: var(--dsw-alias-state-warn-primary);
+
+  --borderRadiusMedium: var(--dsw-radius-sm);
+  --borderRadiusLarge: var(--dsw-radius-md);
+  --borderRadiusXLarge: var(--dsw-radius-lg);
+  --fontFamilyBase: var(--dsw-font-family);
+  --fontSizeBase200: 12px;
+  --fontSizeBase300: 13px;
+  --fontSizeBase400: 15px;
+  --shadow4: none;
+  --shadow16: 0 10px 30px rgb(0 0 0 / 32%);
+}
+
+/* 导航选中不再用 Fluent 的下划线：官方是"实底胶囊" */
+nav button[aria-selected="true"]::after { content: none; }
+nav button { border-radius: var(--dsw-radius-sm); }
+nav button[aria-selected="true"] { background: var(--dsw-alias-interactive-bg-active); }
+
+/* 卡片不要 Fluent 的投影，官方是"细描边 + 层级色" */
+.card { box-shadow: none; }
+

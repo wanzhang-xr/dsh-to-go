@@ -35,6 +35,7 @@
           <select id="ap-bg">
             <option value="fluid">流体渐变</option>
             <option value="solid">纯色</option>
+            <option value="image">自定义图片</option>
           </select>
         </div>
         <div class="f">
@@ -44,6 +45,32 @@
             <option value="calm">克制</option>
             <option value="off">关闭</option>
           </select>
+        </div>
+      </div>
+
+      <div id="ap-wall" hidden>
+        <label>自定义背景</label>
+        <div class="row">
+          <div class="f" style="flex:1 1 260px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="file" id="ap-wall-file" accept="image/png,image/jpeg,image/webp" style="display:none">
+              <button type="button" class="btn" id="ap-wall-pick">选择图片…</button>
+              <button type="button" class="btn" id="ap-wall-clear" hidden>移除背景</button>
+              <span class="sub" id="ap-wall-size"></span>
+            </div>
+            <p class="sub" style="margin:8px 0 0">
+              图片会压到最长边 2560px 存进 <code>data/wallpaper/</code>，跟着盘走；
+              配置页和 <strong>dsh 界面</strong>用的是同一张，看起来是一整块背景。
+            </p>
+          </div>
+          <div class="f">
+            <label for="ap-wall-dim">遮罩</label>
+            <input type="range" id="ap-wall-dim" min="0" max="80" step="5" value="35">
+          </div>
+          <div class="f">
+            <label for="ap-wall-blur">模糊</label>
+            <input type="range" id="ap-wall-blur" min="0" max="24" step="2" value="0">
+          </div>
         </div>
       </div>
 

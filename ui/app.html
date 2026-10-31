@@ -6,6 +6,625 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dsh-to-go · 便携版 DeepSeek Harness</title>
 <style>
+/* ===== 官方 Web UI 设计 token（third_party/dsh-theme，MIT / DeepSeek）===== */
+/* Figma font-weight 510 (an SF Pro variable-font weight) always renders as
+   font-weight: 500 in this UI — non-variable webfonts snap intermediate
+   weights unpredictably across platforms. */
+body {
+  --dsw-static-amber-100: rgb(254, 245, 231);
+  --dsw-static-amber-400: rgb(247, 173, 49);
+  --dsw-static-amber-500: rgb(245, 158, 11);
+  --dsw-static-amber-600: rgb(221, 134, 41);
+  --dsw-static-amber-900: rgb(39, 36, 31);
+  --dsw-static-blue-100: rgb(219, 234, 254);
+  --dsw-static-blue-300: rgb(147, 197, 253);
+  --dsw-static-blue-400: rgb(96, 165, 250);
+  --dsw-static-blue-450: rgb(77, 147, 248);
+  --dsw-static-blue-500: rgb(59, 130, 246);
+  --dsw-static-blue-50: rgb(239, 246, 255);
+  --dsw-static-blue-50p: rgb(234, 243, 255);
+  --dsw-static-blue-600: rgb(37, 99, 235);
+  --dsw-static-blue-75: rgb(229, 240, 255);
+  --dsw-static-blue-800: rgb(30, 64, 175);
+  --dsw-static-blue-900: rgb(14, 48, 116);
+  --dsw-static-blue-950: rgb(23, 37, 84);
+  --dsw-static-deepseek-100: rgb(228, 237, 253);
+  --dsw-static-deepseek-200: rgb(211, 226, 255);
+  --dsw-static-deepseek-300: rgb(183, 200, 254);
+  /* Brightened from the platform rgb(103, 158, 254) at the designer's request: legibility on the dark toast surface. */
+  --dsw-static-deepseek-400: rgb(122, 170, 255);
+  --dsw-static-deepseek-450: rgb(86, 134, 254);
+  --dsw-static-deepseek-500: rgb(65, 118, 230);
+  --dsw-static-deepseek-50: rgb(237, 243, 254);
+  --dsw-static-deepseek-600: rgb(72, 104, 178);
+  --dsw-static-deepseek-700-delete: rgb(47, 76, 143);
+  --dsw-static-deepseek-800: rgb(52, 65, 91);
+  --dsw-static-deepseek-900: rgb(40, 49, 66);
+  --dsw-static-green-100: rgb(230, 250, 237);
+  --dsw-static-green-400: rgb(78, 209, 126);
+  --dsw-static-green-500: rgb(34, 197, 94);
+  --dsw-static-green-500-a08: rgb(34 197 94 / 8%);
+  --dsw-static-green-500-a12: rgb(34 197 94 / 12%);
+  --dsw-static-green-900: rgb(35, 60, 44);
+  --dsw-static-neutral-00: rgb(255, 255, 255);
+  --dsw-static-neutral-1000: rgb(0, 0, 0);
+  --dsw-static-neutral-100: rgb(245, 245, 245);
+  --dsw-static-neutral-150: rgb(237, 237, 237);
+  --dsw-static-neutral-200: rgb(229, 229, 229);
+  --dsw-static-neutral-250: rgb(220, 220, 220);
+  --dsw-static-neutral-300: rgb(212, 212, 212);
+  --dsw-static-neutral-400: rgb(162, 164, 166);
+  --dsw-static-neutral-500: rgb(127, 130, 135);
+  --dsw-static-neutral-50: rgb(250, 250, 250);
+  --dsw-static-neutral-550: rgb(101, 103, 107);
+  --dsw-static-neutral-600: rgb(84, 85, 87);
+  --dsw-static-neutral-700: rgb(60, 60, 61);
+  --dsw-static-neutral-800: rgb(41, 41, 41);
+  --dsw-static-neutral-850: rgb(33, 33, 35);
+  --dsw-static-neutral-900: rgb(15, 15, 15);
+  --dsw-static-neutral-bluish-00: rgb(255, 255, 255);
+  --dsw-static-neutral-bluish-1000: rgb(15, 17, 21);
+  --dsw-static-neutral-bluish-100: rgb(235, 238, 242);
+  --dsw-static-neutral-bluish-150: rgb(233, 236, 242);
+  --dsw-static-neutral-bluish-200: rgb(225, 229, 238);
+  --dsw-static-neutral-bluish-300: rgb(207, 211, 214);
+  --dsw-static-neutral-bluish-310: rgb(202, 210, 219);
+  --dsw-static-neutral-bluish-400: rgb(173, 178, 184);
+  --dsw-static-neutral-bluish-500: rgb(151, 157, 166);
+  --dsw-static-neutral-bluish-50: rgb(249, 250, 251);
+  --dsw-static-neutral-bluish-55: rgb(245, 247, 250);
+  --dsw-static-neutral-bluish-600: rgb(129, 133, 140);
+  --dsw-static-neutral-bluish-60: rgb(245, 246, 247);
+  --dsw-static-neutral-bluish-700: rgb(97, 102, 107);
+  --dsw-static-neutral-bluish-750: rgb(67, 69, 74);
+  --dsw-static-neutral-bluish-75: rgb(241, 243, 245);
+  --dsw-static-neutral-bluish-800: rgb(53, 54, 56);
+  --dsw-static-neutral-bluish-850: rgb(44, 44, 46);
+  --dsw-static-neutral-bluish-875: rgb(35, 35, 36);
+  --dsw-static-neutral-bluish-900: rgb(27, 27, 28);
+  --dsw-static-neutral-bluish-90: rgb(237, 240, 244);
+  --dsw-static-neutral-bluish-950: rgb(21, 21, 23);
+  --dsw-static-red-100: rgb(254, 226, 226);
+  --dsw-static-red-400: rgb(242, 90, 90);
+  --dsw-static-red-400-a12: rgb(242 90 90 / 12%);
+  --dsw-static-red-500: rgb(239, 68, 68);
+  --dsw-static-red-50: rgb(254, 242, 242);
+  --dsw-static-red-600: rgb(236, 19, 19);
+  --dsw-static-red-600-a08: rgb(236 19 19 / 8%);
+  --dsw-static-red-900: rgb(87, 12, 12);
+  --dsw-static-violet-400: rgb(167, 139, 250);
+  --dsw-static-violet-600: rgb(124, 58, 237);
+}
+
+body[data-ds-dark-theme] {
+  --dsw-static-amber-100: rgb(254, 245, 231);
+  --dsw-static-amber-400: rgb(247, 173, 49);
+  --dsw-static-amber-500: rgb(245, 158, 11);
+  --dsw-static-amber-600: rgb(221, 134, 41);
+  --dsw-static-amber-900: rgb(39, 36, 31);
+  --dsw-static-blue-100: rgb(219, 234, 254);
+  --dsw-static-blue-300: rgb(147, 197, 253);
+  --dsw-static-blue-400: rgb(96, 165, 250);
+  --dsw-static-blue-450: rgb(77, 147, 248);
+  --dsw-static-blue-500: rgb(59, 130, 246);
+  --dsw-static-blue-50: rgb(239, 246, 255);
+  --dsw-static-blue-50p: rgb(234, 243, 255);
+  --dsw-static-blue-600: rgb(37, 99, 235);
+  --dsw-static-blue-75: rgb(229, 240, 255);
+  --dsw-static-blue-800: rgb(30, 64, 175);
+  --dsw-static-blue-900: rgb(14, 48, 116);
+  --dsw-static-blue-950: rgb(23, 37, 84);
+  --dsw-static-deepseek-100: rgb(228, 237, 253);
+  --dsw-static-deepseek-200: rgb(211, 226, 255);
+  --dsw-static-deepseek-300: rgb(183, 200, 254);
+  /* Brightened from the platform rgb(103, 158, 254) at the designer's request: legibility on the dark toast surface. */
+  --dsw-static-deepseek-400: rgb(122, 170, 255);
+  --dsw-static-deepseek-450: rgb(86, 134, 254);
+  --dsw-static-deepseek-500: rgb(65, 118, 230);
+  --dsw-static-deepseek-50: rgb(237, 243, 254);
+  --dsw-static-deepseek-600: rgb(72, 104, 178);
+  --dsw-static-deepseek-700-delete: rgb(47, 76, 143);
+  --dsw-static-deepseek-800: rgb(52, 65, 91);
+  --dsw-static-deepseek-900: rgb(40, 49, 66);
+  --dsw-static-green-100: rgb(230, 250, 237);
+  --dsw-static-green-400: rgb(78, 209, 126);
+  --dsw-static-green-500: rgb(34, 197, 94);
+  --dsw-static-green-500-a08: rgb(34 197 94 / 8%);
+  --dsw-static-green-500-a12: rgb(34 197 94 / 12%);
+  --dsw-static-green-900: rgb(35, 60, 44);
+  --dsw-static-neutral-00: rgb(255, 255, 255);
+  --dsw-static-neutral-1000: rgb(0, 0, 0);
+  --dsw-static-neutral-100: rgb(245, 245, 245);
+  --dsw-static-neutral-150: rgb(237, 237, 237);
+  --dsw-static-neutral-200: rgb(229, 229, 229);
+  --dsw-static-neutral-250: rgb(220, 220, 220);
+  --dsw-static-neutral-300: rgb(212, 212, 212);
+  --dsw-static-neutral-400: rgb(162, 164, 166);
+  --dsw-static-neutral-500: rgb(127, 130, 135);
+  --dsw-static-neutral-50: rgb(250, 250, 250);
+  --dsw-static-neutral-550: rgb(101, 103, 107);
+  --dsw-static-neutral-600: rgb(84, 85, 87);
+  --dsw-static-neutral-700: rgb(60, 60, 61);
+  --dsw-static-neutral-800: rgb(41, 41, 41);
+  --dsw-static-neutral-850: rgb(33, 33, 35);
+  --dsw-static-neutral-900: rgb(15, 15, 15);
+  --dsw-static-neutral-bluish-00: rgb(255, 255, 255);
+  --dsw-static-neutral-bluish-1000: rgb(15, 17, 21);
+  --dsw-static-neutral-bluish-100: rgb(235, 238, 242);
+  --dsw-static-neutral-bluish-150: rgb(233, 236, 242);
+  --dsw-static-neutral-bluish-200: rgb(225, 229, 238);
+  --dsw-static-neutral-bluish-300: rgb(207, 211, 214);
+  --dsw-static-neutral-bluish-310: rgb(202, 210, 219);
+  --dsw-static-neutral-bluish-400: rgb(173, 178, 184);
+  --dsw-static-neutral-bluish-500: rgb(151, 157, 166);
+  --dsw-static-neutral-bluish-50: rgb(249, 250, 251);
+  --dsw-static-neutral-bluish-55: rgb(245, 247, 250);
+  --dsw-static-neutral-bluish-600: rgb(129, 133, 140);
+  --dsw-static-neutral-bluish-60: rgb(249, 250, 251);
+  --dsw-static-neutral-bluish-700: rgb(97, 102, 107);
+  --dsw-static-neutral-bluish-750: rgb(67, 69, 74);
+  --dsw-static-neutral-bluish-75: rgb(241, 243, 245);
+  --dsw-static-neutral-bluish-800: rgb(53, 54, 56);
+  --dsw-static-neutral-bluish-850: rgb(44, 44, 46);
+  --dsw-static-neutral-bluish-875: rgb(35, 35, 36);
+  --dsw-static-neutral-bluish-900: rgb(27, 27, 28);
+  --dsw-static-neutral-bluish-90: rgb(237, 240, 244);
+  --dsw-static-neutral-bluish-950: rgb(21, 21, 23);
+  --dsw-static-red-100: rgb(254, 226, 226);
+  --dsw-static-red-400: rgb(242, 90, 90);
+  --dsw-static-red-400-a12: rgb(242 90 90 / 12%);
+  --dsw-static-red-500: rgb(239, 68, 68);
+  --dsw-static-red-50: rgb(254, 242, 242);
+  --dsw-static-red-600: rgb(236, 19, 19);
+  --dsw-static-red-600-a08: rgb(236 19 19 / 8%);
+  --dsw-static-red-900: rgb(87, 12, 12);
+  --dsw-static-violet-400: rgb(167, 139, 250);
+  --dsw-static-violet-600: rgb(124, 58, 237);
+}
+
+body {
+  --dsw-alias-bg-base: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-bg-document-preview: var(--dsw-static-neutral-bluish-100);
+  --dsw-alias-bg-document-selection: color-mix(in srgb, var(--dsw-static-blue-500) 40%, transparent);
+  --dsw-alias-label-document-preview: var(--dsw-static-neutral-bluish-700);
+  --dsw-alias-bg-layer-1: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-bg-layer-2: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-bg-layer-3: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.24);
+  --dsw-alias-bg-mask-2: rgba(0, 0, 0, 0.12);
+  --dsw-alias-bg-mask-3: rgba(0, 0, 0, 0.48);
+  --dsw-alias-bg-mask-photo: rgba(0, 0, 0, 0.88);
+  --dsw-alias-bg-mask-drop: rgba(255, 255, 255, 0.7);
+  --dsw-alias-bg-module-platform: var(--dsw-static-neutral-bluish-60);
+  --dsw-alias-bg-multi-select: var(--dsw-static-neutral-bluish-60);
+  --dsw-alias-bg-overlay: var(--dsw-static-neutral-bluish-150);
+  --dsw-alias-bg-skeleton: rgba(0, 0, 0, 0.04);
+  --dsw-alias-border-inverted2: rgba(0, 0, 0, 0);
+  --dsw-alias-border-inverted: rgba(0, 0, 0, 0);
+  --dsw-alias-border-l1: rgba(0, 0, 0, 0.04);
+  --dsw-alias-border-l2-darkmode-thin: rgba(0, 0, 0, 0.1);
+  --dsw-alias-border-l2: rgba(0, 0, 0, 0.1);
+  --dsw-alias-border-l3: rgba(0, 0, 0, 0.12);
+  --dsw-alias-border-l4: rgba(0, 0, 0, 0.16);
+  --dsw-alias-brand-primary-invert: var(--dsw-static-neutral-bluish-1000);
+  --dsw-alias-brand-primary-new-colorprimary-new-color: rgb(65, 118, 230);
+  --dsw-alias-brand-primary: var(--dsw-static-neutral-bluish-1000);
+  --dsw-alias-brand-text: var(--dsw-static-neutral-bluish-1000);
+  --dsw-alias-button-contrast-fill: var(--dsw-static-neutral-bluish-700);
+  --dsw-alias-button-elevated-fill: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-button-floating-fill: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-button-floating-hover: var(--dsw-static-neutral-bluish-75);
+  --dsw-alias-button-ghost-active-border: var(--dsw-static-neutral-bluish-500);
+  --dsw-alias-button-ghost-active-fill: var(--dsw-static-neutral-bluish-100);
+  --dsw-alias-button-ghost-active-hover: var(--dsw-static-neutral-bluish-150);
+  --dsw-alias-button-info-fill: var(--dsw-static-deepseek-500);
+  --dsw-alias-button-info-hover: var(--dsw-static-deepseek-400);
+  --dsw-alias-button-primary-dimmed: var(--dsw-static-neutral-bluish-100);
+  --dsw-alias-button-primary-fill: var(--dsw-alias-brand-primary);
+  --dsw-alias-button-primary-hover: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(31, 31, 31, 0.36);
+  --dsw-alias-button-tool-bar-fill: rgba(84, 85, 87, 0.5);
+  --dsw-alias-button-tool-bar-hover: rgba(84, 85, 87, 0.6);
+  --dsw-alias-illustration-background: var(--dsw-static-neutral-bluish-55);
+  --dsw-alias-illustration-backing: var(--dsw-static-neutral-bluish-310);
+  --dsw-alias-illustration-detail: var(--dsw-static-neutral-bluish-310);
+  --dsw-alias-illustration-inset: var(--dsw-alias-illustration-surface);
+  --dsw-alias-illustration-shadow: var(--dsw-alias-illustration-surface);
+  --dsw-alias-illustration-surface: var(--dsw-static-neutral-bluish-90);
+  --dsw-alias-interactive-bg-active: rgba(38, 49, 72, 0.1);
+  --dsw-alias-interactive-bg-hover-accent: rgba(38, 49, 72, 0.14);
+  --dsw-alias-interactive-bg-hover-danger: rgba(236, 19, 19, 0.05);
+  --dsw-alias-interactive-bg-hover-solid: var(--dsw-static-neutral-bluish-75);
+  --dsw-alias-interactive-bg-hover: rgba(38, 49, 72, 0.06);
+  --dsw-alias-label-caption: var(--dsw-static-neutral-bluish-400);
+  --dsw-alias-label-deep-diving: color-mix(in srgb, var(--dsw-static-deepseek-500) 70%, var(--dsw-static-blue-950));
+  --dsw-alias-label-deep-diving-shimmer: color-mix(in srgb, var(--dsw-static-deepseek-500) 30%, var(--dsw-static-blue-950));
+  --dsw-alias-label-dimmed: var(--dsw-static-neutral-bluish-200);
+  --dsw-alias-label-primary-bluish: var(--dsw-static-blue-900);
+  --dsw-alias-label-primary-dimmed: var(--dsw-static-neutral-bluish-950);
+  --dsw-alias-label-primary-foreground: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-label-primary-inverted: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-label-primary: var(--dsw-static-neutral-bluish-1000);
+  --dsw-alias-label-secondary: var(--dsw-static-neutral-bluish-700);
+  --dsw-alias-label-shimmer: color-mix(in srgb, var(--dsw-static-neutral-1000) 30%, transparent);
+  --dsw-alias-label-tertiary: var(--dsw-static-neutral-bluish-600);
+  --dsw-alias-menu-icon: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-link: var(--dsw-static-deepseek-500);
+  --dsw-alias-markdown-citation: var(--dsw-static-neutral-bluish-100);
+  --dsw-alias-markdown-code-block-banner: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-markdown-code-block: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-markdown-code-segment-selected: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-markdown-code-segment-unselected: var(--dsw-static-neutral-bluish-75);
+  --dsw-alias-markdown-inline-code: var(--dsw-static-neutral-50);
+  --dsw-alias-markdown-placeholder: var(--dsw-static-neutral-bluish-60);
+  --dsw-alias-markdown-tag: var(--dsw-static-neutral-bluish-75);
+  --dsw-alias-scrollbar-bg-l1: var(--dsw-static-neutral-200);
+  --dsw-alias-scrollbar-bg-l2: var(--dsw-static-neutral-200);
+  --dsw-alias-scrollbar-hover-l1: var(--dsw-static-neutral-300);
+  --dsw-alias-scrollbar-hover-l2: var(--dsw-static-neutral-300);
+  --dsw-alias-state-business-primary: var(--dsw-static-deepseek-500);
+  --dsw-alias-state-business-tertiary: var(--dsw-static-deepseek-100);
+  --dsw-alias-code-diff-added: var(--dsw-static-green-500-a08);
+  --dsw-alias-code-diff-deleted: var(--dsw-static-red-600-a08);
+  --dsw-alias-file-diff-added-bg: rgb(230, 244, 231);
+  --dsw-alias-file-diff-added-gutter: rgb(237, 247, 237);
+  --dsw-alias-file-diff-added-marker: rgb(1, 162, 65);
+  --dsw-alias-file-diff-deleted-bg: rgb(252, 230, 226);
+  --dsw-alias-file-diff-deleted-gutter: rgb(253, 236, 233);
+  --dsw-alias-file-diff-deleted-marker: rgb(186, 39, 35);
+  --dsw-alias-state-done-primary: var(--dsw-static-violet-600);
+  --dsw-alias-state-error-primary: var(--dsw-static-red-600);
+  --dsw-alias-state-error-secondary: var(--dsw-static-red-400);
+  --dsw-alias-state-idle-primary: var(--dsw-static-neutral-300);
+  --dsw-alias-state-success-primary: var(--dsw-static-green-500);
+  --dsw-alias-state-success-secondary: var(--dsw-static-green-400);
+  --dsw-alias-state-success-tertiary: var(--dsw-static-green-100);
+  --dsw-alias-state-warn-label: var(--dsw-static-amber-600);
+  --dsw-alias-state-warn-primary: var(--dsw-static-amber-500);
+  --dsw-alias-state-warn-secondary: var(--dsw-static-amber-400);
+  --dsw-alias-state-warn-tertiary: var(--dsw-static-amber-100);
+  --dsw-alias-switch-thumb: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-toast-bg: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-toast-label: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-tooltip-bg: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-tooltip-key-bg: color-mix(in srgb, var(--dsw-alias-tooltip-bg), white 18%);
+  --dsw-alias-turn-trigger-bg: var(--dsw-alias-markdown-code-block);
+  --dsw-alias-turn-trigger-bg-hover: var(--dsw-alias-interactive-bg-hover);
+  --dsw-specific-bubble-highlight: var(--dsw-static-deepseek-200);
+  --dsw-specific-bubble: var(--dsw-static-deepseek-50);
+  --dsw-specific-input-major: var(--dsw-static-neutral-bluish-00);
+  --dsw-specific-login-input: var(--dsw-static-neutral-bluish-50);
+  --dsw-menu-surface-fill: rgba(252, 253, 254, 0.7);
+  --dsw-alias-menu-group-header-fill: rgba(248, 249, 250, 0.94);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: var(--dsw-static-neutral-bluish-60);
+  --dsw-specific-sidebar-fill: var(--dsw-static-neutral-bluish-50);
+  --dsw-specific-sidebar-nav-item-active-accent: var(--dsw-static-deepseek-100);
+  --dsw-specific-sidebar-nav-item-active: var(--dsw-static-neutral-bluish-100);
+  --dsw-specific-tip: var(--dsw-static-neutral-bluish-60);
+
+  background-color: var(--dsw-alias-bg-base);
+}
+
+body[data-ds-dark-theme] {
+  --dsw-alias-bg-base: var(--dsw-static-neutral-bluish-950);
+  --dsw-alias-bg-document-preview: var(--dsw-static-neutral-bluish-950);
+  --dsw-alias-bg-document-selection: color-mix(in srgb, var(--dsw-static-blue-500) 40%, transparent);
+  --dsw-alias-label-document-preview: var(--dsw-static-neutral-bluish-300);
+  --dsw-alias-bg-layer-1: var(--dsw-static-neutral-bluish-875);
+  --dsw-alias-bg-layer-2: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-bg-layer-3: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.5);
+  --dsw-alias-bg-mask-2: rgba(0, 0, 0, 0.2);
+  --dsw-alias-bg-mask-3: rgba(0, 0, 0, 0.48);
+  --dsw-alias-bg-mask-photo: rgba(0, 0, 0, 0.88);
+  --dsw-alias-bg-mask-drop: rgba(39, 39, 48, 0.7);
+  --dsw-alias-bg-module-platform: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-bg-multi-select: var(--dsw-static-neutral-850);
+  --dsw-alias-bg-overlay: var(--dsw-static-neutral-bluish-700);
+  --dsw-alias-bg-skeleton: rgba(255, 255, 255, 0.08);
+  --dsw-alias-border-inverted2: rgba(255, 255, 255, 0.08);
+  --dsw-alias-border-inverted: rgba(255, 255, 255, 0.06);
+  --dsw-alias-border-l1: rgba(255, 255, 255, 0.06);
+  --dsw-alias-border-l2-darkmode-thin: rgba(255, 255, 255, 0.06);
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.12);
+  --dsw-alias-border-l3: rgba(255, 255, 255, 0.16);
+  --dsw-alias-border-l4: rgba(255, 255, 255, 0.2);
+  --dsw-alias-brand-primary-invert: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-brand-primary-new-colorprimary-new-color: var(--dsw-static-deepseek-450);
+  --dsw-alias-brand-primary: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-brand-text: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-button-contrast-fill: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-button-elevated-fill: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-button-floating-fill: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-button-floating-hover: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-button-ghost-active-border: var(--dsw-static-neutral-bluish-600);
+  --dsw-alias-button-ghost-active-fill: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-button-ghost-active-hover: var(--dsw-static-neutral-bluish-700);
+  --dsw-alias-button-info-fill: var(--dsw-static-deepseek-400);
+  --dsw-alias-button-info-hover: var(--dsw-static-deepseek-500);
+  --dsw-alias-button-primary-dimmed: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-button-primary-fill: var(--dsw-alias-brand-primary);
+  --dsw-alias-button-primary-hover: var(--dsw-static-neutral-bluish-100);
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(31, 31, 31, 0.36);
+  --dsw-alias-button-tool-bar-fill: rgba(84, 85, 87, 0.5);
+  --dsw-alias-button-tool-bar-hover: rgba(84, 85, 87, 0.6);
+  --dsw-alias-illustration-background: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-illustration-backing: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-illustration-detail: var(--dsw-static-neutral-bluish-600);
+  --dsw-alias-illustration-inset: var(--dsw-alias-illustration-backing);
+  --dsw-alias-illustration-shadow: var(--dsw-alias-illustration-backing);
+  --dsw-alias-illustration-surface: var(--dsw-static-neutral-bluish-700);
+  --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.14);
+  --dsw-alias-interactive-bg-hover-accent: rgba(255, 255, 255, 0.24);
+  --dsw-alias-interactive-bg-hover-danger: rgba(242, 90, 90, 0.15);
+  --dsw-alias-interactive-bg-hover-solid: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
+  --dsw-alias-label-caption: var(--dsw-static-neutral-bluish-600);
+  --dsw-alias-label-deep-diving: color-mix(in srgb, var(--dsw-static-deepseek-450) 55%, var(--dsw-static-neutral-bluish-400));
+  --dsw-alias-label-deep-diving-shimmer: color-mix(in srgb, var(--dsw-static-blue-300) 65%, var(--dsw-static-deepseek-400));
+  --dsw-alias-label-dimmed: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-label-primary-bluish: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-label-primary-dimmed: var(--dsw-static-neutral-bluish-100);
+  --dsw-alias-label-primary-foreground: var(--dsw-static-neutral-bluish-1000);
+  --dsw-alias-label-primary-inverted: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-label-primary: var(--dsw-static-neutral-bluish-50);
+  --dsw-alias-label-secondary: var(--dsw-static-neutral-bluish-300);
+  --dsw-alias-label-shimmer: color-mix(in srgb, var(--dsw-static-neutral-00) 45%, transparent);
+  --dsw-alias-label-tertiary: var(--dsw-static-neutral-bluish-400);
+  --dsw-alias-menu-icon: var(--dsw-alias-label-primary-dimmed);
+  --dsw-alias-link: var(--dsw-static-deepseek-400);
+  --dsw-alias-markdown-citation: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-markdown-code-block-banner: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-markdown-code-block: var(--dsw-static-neutral-bluish-900);
+  --dsw-alias-markdown-code-segment-selected: var(--dsw-static-neutral-bluish-800);
+  --dsw-alias-markdown-code-segment-unselected: var(--dsw-static-neutral-bluish-900);
+  --dsw-alias-markdown-inline-code: var(--dsw-static-neutral-800);
+  --dsw-alias-markdown-placeholder: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-markdown-tag: var(--dsw-static-neutral-bluish-850);
+  --dsw-alias-scrollbar-bg-l1: var(--dsw-static-neutral-700);
+  --dsw-alias-scrollbar-bg-l2: var(--dsw-static-neutral-600);
+  --dsw-alias-scrollbar-hover-l1: var(--dsw-static-neutral-600);
+  --dsw-alias-scrollbar-hover-l2: var(--dsw-static-neutral-550);
+  --dsw-alias-state-business-primary: var(--dsw-static-deepseek-400);
+  --dsw-alias-state-business-tertiary: var(--dsw-static-deepseek-800);
+  --dsw-alias-code-diff-added: var(--dsw-static-green-500-a12);
+  --dsw-alias-code-diff-deleted: var(--dsw-static-red-400-a12);
+  --dsw-alias-file-diff-added-bg: rgb(31, 49, 36);
+  --dsw-alias-file-diff-added-gutter: rgb(19, 32, 22);
+  --dsw-alias-file-diff-added-marker: rgb(65, 201, 119);
+  --dsw-alias-file-diff-deleted-bg: rgb(60, 31, 27);
+  --dsw-alias-file-diff-deleted-gutter: rgb(40, 19, 14);
+  --dsw-alias-file-diff-deleted-marker: rgb(250, 66, 62);
+  --dsw-alias-state-done-primary: var(--dsw-static-violet-400);
+  --dsw-alias-state-error-primary: var(--dsw-static-red-400);
+  --dsw-alias-state-error-secondary: var(--dsw-static-red-400);
+  --dsw-alias-state-idle-primary: var(--dsw-static-neutral-600);
+  --dsw-alias-state-success-primary: var(--dsw-static-green-500);
+  --dsw-alias-state-success-secondary: var(--dsw-static-green-400);
+  --dsw-alias-state-success-tertiary: var(--dsw-static-green-900);
+  --dsw-alias-state-warn-label: var(--dsw-static-amber-600);
+  --dsw-alias-state-warn-primary: var(--dsw-static-amber-500);
+  --dsw-alias-state-warn-secondary: var(--dsw-static-amber-400);
+  --dsw-alias-state-warn-tertiary: var(--dsw-static-amber-900);
+  --dsw-alias-switch-thumb: var(--dsw-static-neutral-bluish-400);
+  --dsw-alias-toast-bg: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-toast-label: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-turn-trigger-bg: var(--dsw-alias-interactive-bg-hover);
+  --dsw-alias-turn-trigger-bg-hover: var(--dsw-alias-interactive-bg-active);
+  --dsw-alias-tooltip-bg: var(--dsw-static-neutral-bluish-750);
+  --dsw-alias-tooltip-key-bg: color-mix(in srgb, var(--dsw-alias-tooltip-bg), white 18%);
+  --dsw-specific-bubble-highlight: var(--dsw-static-neutral-bluish-750);
+  --dsw-specific-bubble: var(--dsw-static-neutral-bluish-850);
+  --dsw-specific-input-major: var(--dsw-static-neutral-bluish-850);
+  --dsw-specific-login-input: var(--dsw-static-neutral-bluish-900);
+  --dsw-menu-surface-fill: rgba(48, 49, 54, 0.64);
+  --dsw-alias-menu-group-header-fill: rgba(48, 49, 54, 0.94);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: var(--dsw-static-neutral-bluish-800);
+  --dsw-specific-sidebar-fill: var(--dsw-static-neutral-bluish-900);
+  --dsw-specific-sidebar-nav-item-active-accent: var(--dsw-static-neutral-bluish-800);
+  --dsw-specific-sidebar-nav-item-active: var(--dsw-static-neutral-bluish-750);
+  --dsw-specific-tip: var(--dsw-static-neutral-bluish-800);
+}
+
+/* Overlays without MenuSurface's opaque backing cannot blur page content over
+ * native vibrancy reliably, so their fill stays nearly opaque on macOS. */
+html[data-platform='darwin'] body {
+  --dsw-specific-menu: rgba(248, 249, 250, 0.94);
+}
+
+html[data-platform='darwin'] body[data-ds-dark-theme] {
+  --dsw-specific-menu: rgba(48, 49, 54, 0.94);
+}
+
+/* Base variables referenced by the token sheets and component CSS but defined
+ * upstream (deepsuite theme/global.css) — supplied here so the composite
+ * --dsw-font-* variables resolve and motion rides the upstream curve. Code
+ * font stack deliberately omits a bare `monospace` tail (Windows CJK falls
+ * back to SimSun otherwise). */
+:root {
+  --dsh-font-family-text-default: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --dsw-font-family: var(--dsh-font-family-text-default);
+  --dsw-font-family-brand: 'Montserrat', var(--dsh-font-family-text-default);
+  --dsh-font-family-code-default: 'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas,
+    'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei';
+  --ds-font-family-code: var(--dsh-font-family-code-default);
+  --ds-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-transition-duration: 0.2s;
+  --ds-transition-duration-fast: 0.1s;
+  --ds-transition-duration-slow: 0.3s;
+  --dsw-radius-xs: 4px;
+  --dsw-radius-sm: 8px;
+  --dsw-radius-md: 12px;
+  --dsw-radius-lg: 16px;
+  --dsw-radius-xl: 20px;
+  --dsw-radius-panel: 28px;
+}
+
+/* User font lists (--dsh-font-family-text/-code, written on body by the theme
+ * boot script and ThemePresenter) lead the built-in stacks. An unset list
+ * falls back to the built-in stack itself; the repeated families are inert. */
+body {
+  --dsw-font-family: var(--dsh-font-family-text, var(--dsh-font-family-text-default)), var(--dsh-font-family-text-default);
+  --ds-font-family-code: var(--dsh-font-family-code, var(--dsh-font-family-code-default)), var(--dsh-font-family-code-default);
+  --dsw-alias-settings-card-fill: var(--dsw-alias-bg-layer-2);
+  --dsw-alias-settings-card-stroke: var(--dsw-alias-border-l4);
+}
+
+[data-dsh-automatic-focus]:focus,
+[data-dsh-automatic-focus]:focus:focus-visible {
+  outline: none;
+}
+
+/* Smooth corner curvature for every rounded surface. Inside the support
+ * guard, all corners curve along superellipse(1.5) — between a circular arc
+ * (round = superellipse(1)) and a squircle (superellipse(2)) — instead of the
+ * default arc; engines without corner-shape keep circular corners because the
+ * token and the rule exist only inside the guard.
+ *
+ * corner-shape does not inherit, so the universal selector applies the token
+ * to elements and their ::before/::after; other pseudo-elements (for example
+ * the ::-webkit-scrollbar parts) stay circular.
+ *
+ * Full-round shapes opt out where they are declared: a superellipse deforms a
+ * circle into a squircle and squares off capsule ends, so every effectively
+ * uncapped radius (50%, 100%, or a pill radius far above the box size) pairs
+ * `corner-shape: round` with its `border-radius` in the owning component
+ * sheet. The corner-shape stylesheet spec enforces that pairing. */
+@supports (corner-shape: superellipse(1.5)) {
+  :root {
+    --dsw-corner-shape: superellipse(1.5);
+  }
+
+  *,
+  *::before,
+  *::after {
+    corner-shape: var(--dsw-corner-shape);
+  }
+}
+
+/* Scrollbar skin: the sole consumer of the four --dsw-alias-scrollbar-*
+ * tokens. Without it every scrolling region renders the UA scrollbar, which
+ * ignores the theme — a light native bar over the dark palette.
+ *
+ * The rules sit on `body`, not `html`: design-platform.css declares the
+ * --dsw-alias-* tokens on `body` (and the dark overrides on
+ * `body[data-ds-dark-theme]`), and custom properties only inherit downward,
+ * so an `html` rule resolves them to the guaranteed-invalid value and
+ * `scrollbar-color` falls back to `auto`.
+ *
+ * Surfaces pick their elevation by rebinding --dsh-scrollbar-thumb{,-hover}:
+ * the l1 pair here is the base-surface default, and an elevated surface
+ * (menu, popover, dialog) rebinds to the l2 pair on its own container. A
+ * scroll container may also rebind the three geometry variables below. */
+
+body {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l1);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l1);
+  --dsh-scrollbar-thumb-border: 0px;
+  --dsh-scrollbar-track-margin: 0px;
+  /* The WebKit bar's layout width, mirrored by the ::-webkit-scrollbar rule
+     below. A surface that must align itself beside a space-consuming bar
+     (ConversationRoot's overlay composer seat) reads this instead of
+     hardcoding the number. */
+  --dsh-scrollbar-width: 5px;
+}
+
+/* The two paths are mutually exclusive, and the gate is load-bearing rather
+   than defensive. A non-`auto` `scrollbar-width` or `scrollbar-color` makes
+   Chromium and Safari drop every `::-webkit-scrollbar*` rule for that
+   element, including `::-webkit-scrollbar-thumb:hover` — measured in chromium
+   as a `::-webkit-scrollbar` width taking effect on its own and being
+   ignored as soon as `scrollbar-width: thin` is added. Declaring both
+   unconditionally therefore leaves the hover tokens with no rendering at all,
+   because the engines that implement the hover pseudo-element are exactly the
+   ones the standard properties silence, and Firefox has no hover
+   pseudo-element to fall back on.
+
+   `not selector(::-webkit-scrollbar)` is true only where the pseudo-element
+   is unimplemented, so Firefox takes the standard path and WebKit-based
+   engines take the pseudo-element path. An engine too old for the
+   `selector()` function makes the condition invalid, which evaluates false
+   and selects the pseudo-element path — the correct side for the pre-16.4
+   Safari that is the realistic case. */
+@supports not selector(::-webkit-scrollbar) {
+  /* Declared on every element rather than inherited from `body`. Inheriting
+     would pass down the COLOUR already substituted at `body`, so a descendant
+     rebinding --dsh-scrollbar-thumb could not change it; re-declaring makes
+     each element substitute the variable as it sees it, which is what gives
+     an elevated surface a working rebind. `scrollbar-width` is not an
+     inherited property at all, so it needs the per-element declaration
+     regardless.
+
+     No hover counterpart exists on this path: `scrollbar-color` states one
+     thumb colour and the engine derives its own hover treatment. */
+  body,
+  body * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dsh-scrollbar-thumb) transparent;
+  }
+}
+
+/* Not gated in turn: an engine that does not implement these pseudo-elements
+   drops the rules as unknown selectors, so the gate would only restate what
+   selector matching already does. Not inherited either, hence the unscoped
+   selectors. */
+::-webkit-scrollbar {
+  width: var(--dsh-scrollbar-width);
+  height: var(--dsh-scrollbar-width);
+}
+
+/* Track stays transparent so the thumb reads against whatever surface scrolls
+   under it; only the thumb carries a token colour. */
+::-webkit-scrollbar-track {
+  margin-block: var(--dsh-scrollbar-track-margin);
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: var(--dsh-scrollbar-thumb-border) solid transparent;
+  border-radius: 999px;
+  corner-shape: round;
+  background: var(--dsh-scrollbar-thumb);
+  background-clip: content-box;
+}
+
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--dsh-scrollbar-thumb-hover);
+  }
+}
+
+/* Both scrollbars meeting in a corner: no separate token, so the corner
+   matches the transparent track rather than the UA's opaque default. */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Components own offsets; dense tables and toolbars may keep a 1px ring. */
+:root {
+  --dsw-focus-ring-width: 2px;
+}
+
+/* The fallback names the colour and the standard width, never the style: a control that
+ * disables its outline keeps `none` and paints nothing. Without the width, Chromium's
+ * unnamed ring stayed at `auto 1px` while every declared ring used the standard geometry.
+ * Declared rings also read this color, including rings on descendants and pseudo-elements. */
+:focus-visible {
+  outline-color: var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-width: var(--dsw-focus-ring-width);
+}
+
+/* ui-primitives/input-modality publishes the attribute. Editable controls keep
+ * their focus feedback on click; other controls reveal rings on keyboard
+ * navigation. Only ring paint is suppressed, not elevation or selected borders. */
+html[data-input-modality='pointer'] body :focus-visible:not(:read-write) {
+  --dsw-focus-ring-color: transparent;
+  outline-color: transparent;
+}
+
 /* ===== 原有视觉层（src/legacy.css）===== */
 /* 设计基线来自 ui-ux-pro-max 的 Dark Mode (OLED)：深色优先、低发白、高对比。
    字体只用系统自带（U 盘可能离线，不能依赖外链字体）。 */
@@ -29,7 +648,7 @@
 @keyframes pulse{0%{box-shadow:0 0 0 0 currentColor;opacity:1}70%{box-shadow:0 0 0 9px transparent;opacity:.85}100%{box-shadow:0 0 0 0 transparent;opacity:1}}
 @keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:14px/1.6 var(--font-ui)}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:14.5px/1.6 var(--font-ui)}
 a{color:var(--accent)}
 code,pre,.mono{font-family:var(--font-mono)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -915,7 +1534,7 @@ fluent-switch, fluent-tabs, fluent-tab, fluent-card, fluent-dialog, fluent-badge
 fluent-progress-bar, fluent-spinner, fluent-tooltip, fluent-accordion, fluent-accordion-item {
   --accent-fill-rest: var(--colorBrandBackground);
   --accent-fill-hover: var(--colorBrandBackgroundHover);
-  --accent-foreground-rest: var(--colorBrandForeground1);
+  --accent-foreground-rest: var(--on-accent);
   --neutral-foreground-rest: var(--colorNeutralForeground1);
   --neutral-foreground-hint: var(--colorNeutralForeground3);
   --neutral-fill-rest: var(--colorNeutralBackground1);
@@ -1052,6 +1671,58 @@ header h1 .sub { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: 
 header h1 .pill { flex: 0 0 auto; }
 header .hdr-actions { flex: 0 0 auto; }
 
+/* ===========================================================================
+   设计语言切换：Fluent 令牌 → dsh 官方语义别名
+   ---------------------------------------------------------------------------
+   本文件前面的 :root 块是 Fluent 2 的字面值（历史遗留，留作兜底）。
+   这里在 body 上把它们重新指向官方 token，于是：
+     · 页面元素（用 --colorNeutral* 的那些）→ 官方灰阶
+     · fluent-* 组件（shadow DOM 只能吃令牌）→ 官方灰阶/品牌色/圆角
+   ⚠️ 必须写在 body：--dsw-alias-* 是官方定义在 body 作用域的，写到 :root 会变无效值。
+   =========================================================================== */
+body {
+  --colorNeutralBackground1: var(--dsw-alias-bg-layer-1);
+  --colorNeutralBackground2: var(--dsw-alias-bg-layer-2);
+  --colorNeutralBackground3: var(--dsw-alias-bg-base);
+  --colorNeutralBackground4: var(--dsw-alias-bg-layer-3);
+  --colorNeutralForeground1: var(--dsw-alias-label-primary);
+  --colorNeutralForeground2: var(--dsw-alias-label-secondary);
+  --colorNeutralForeground3: var(--dsw-alias-label-tertiary);
+  --colorNeutralForeground4: var(--dsw-alias-label-dimmed);
+  --colorNeutralStroke1: var(--dsw-alias-border-l3);
+  --colorNeutralStroke2: var(--dsw-alias-border-l2);
+  --colorNeutralStroke3: var(--dsw-alias-border-l1);
+  --colorNeutralStrokeAccessible: var(--dsw-alias-label-tertiary);
+
+  --colorBrandBackground: var(--brand-fill);
+  --colorBrandBackgroundHover: var(--brand-fill-hover);
+  --colorBrandForeground1: var(--brand-fill);
+  --colorBrandStroke1: var(--brand-fill);
+
+  --colorStatusSuccessForeground1: var(--dsw-alias-state-success-primary);
+  --colorStatusDangerForeground1: var(--dsw-alias-state-error-primary);
+  --colorStatusWarningForeground1: var(--dsw-alias-state-warn-primary);
+
+  --borderRadiusMedium: var(--dsw-radius-sm);
+  --borderRadiusLarge: var(--dsw-radius-md);
+  --borderRadiusXLarge: var(--dsw-radius-lg);
+  --fontFamilyBase: var(--dsw-font-family);
+  --fontSizeBase200: 12px;
+  --fontSizeBase300: 13px;
+  --fontSizeBase400: 15px;
+  --shadow4: none;
+  --shadow16: 0 10px 30px rgb(0 0 0 / 32%);
+}
+
+/* 导航选中不再用 Fluent 的下划线：官方是"实底胶囊" */
+nav button[aria-selected="true"]::after { content: none; }
+nav button { border-radius: var(--dsw-radius-sm); }
+nav button[aria-selected="true"] { background: var(--dsw-alias-interactive-bg-active); }
+
+/* 卡片不要 Fluent 的投影，官方是"细描边 + 层级色" */
+.card { box-shadow: none; }
+
+
 /* ===== 外观层（src/appearance.css）：流体背景 / 主色 / 动效 ===== */
 /* ===========================================================================
    外观层（src/appearance.css）
@@ -1103,19 +1774,21 @@ html[data-bg="solid"] body::before,
 html[data-bg="solid"] body::after { display: none; }
 
 /* ---------- 主色预设（只换令牌，不动组件样式） ---------- */
+/* 主色改用官方调色板（deepseek / blue 两个 ramp 的浅深两端），
+   不再用绿+靛+青那套——那套跟 dsh 官方 Web UI 的中性灰+蓝不在一个语言里 */
 :root {
-  --accent: #22C55E; --on-accent: #0F172A;
-  --accent-2: #6366F1; --accent-3: #06B6D4;
+  --accent: #5686FE; --on-accent: #FFFFFF;      /* deepseek-450 */
+  --accent-2: #7AAAFF; --accent-3: #4D93F8;     /* deepseek-400 / blue-450 */
 }
 html[data-theme="light"] {
-  --accent: #15803D; --on-accent: #FFFFFF;
-  --accent-2: #4F46E5; --accent-3: #0E7490;
+  --accent: #4176E6; --on-accent: #FFFFFF;      /* deepseek-500 */
+  --accent-2: #5686FE; --accent-3: #2563EB;     /* deepseek-450 / blue-600 */
 }
-html[data-accent="green"]  { --accent: #22C55E; --accent-2: #6366F1; --accent-3: #06B6D4; --on-accent: #0F172A; }
-html[data-accent="blue"]   { --accent: #3B82F6; --accent-2: #06B6D4; --accent-3: #8B5CF6; --on-accent: #04121F; }
-html[data-accent="purple"] { --accent: #A855F7; --accent-2: #6366F1; --accent-3: #EC4899; --on-accent: #12061F; }
-html[data-accent="orange"] { --accent: #F59E0B; --accent-2: #EF4444; --accent-3: #F97316; --on-accent: #1B0F02; }
-html[data-accent="cyan"]   { --accent: #06B6D4; --accent-2: #22C55E; --accent-3: #3B82F6; --on-accent: #03151A; }
+html[data-accent="green"]  { --accent: #22C55E; --accent-2: #4ED17E; --accent-3: #0E7490; --on-accent: #FFFFFF; }
+html[data-accent="blue"]   { --accent: #5686FE; --accent-2: #7AAAFF; --accent-3: #4D93F8; --on-accent: #FFFFFF; }
+html[data-accent="purple"] { --accent: #A855F7; --accent-2: #6366F1; --accent-3: #EC4899; --on-accent: #FFFFFF; }
+html[data-accent="orange"] { --accent: #F59E0B; --accent-2: #EF4444; --accent-3: #F97316; --on-accent: #FFFFFF; }
+html[data-accent="cyan"]   { --accent: #06B6D4; --accent-2: #22C55E; --accent-3: #3B82F6; --on-accent: #FFFFFF; }
 html[data-theme="light"][data-accent="green"]  { --accent: #15803D; --on-accent: #FFFFFF; }
 html[data-theme="light"][data-accent="blue"]   { --accent: #1D4ED8; --on-accent: #FFFFFF; }
 html[data-theme="light"][data-accent="purple"] { --accent: #7E22CE; --on-accent: #FFFFFF; }
@@ -1250,6 +1923,65 @@ input, select, textarea, pre, code {
 }
 input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transparent) !important; }
 
+/* ---------- 在桌面壳里（Electron）：色斑从标题栏下方才开始 ----------
+   壳的标题栏是另一个 view，画不出页面里的模糊色斑；如果在边界处硬切，
+   就会看到"一条纯色 + 一片渐变"的接缝。所以这里给色斑加个遮罩，
+   让最上面 ~40px 干净地淡出，两侧颜色一致就没有接缝了。 */
+html.dsh-shell body::before,
+html.dsh-shell body::after {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 38px, #000 96px);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent 38px, #000 96px);
+}
+
+
+/* ---- 拖动/缩放窗口期间：把两颗大模糊层的动画停掉、过渡全关 ----
+   浮动的 blur(64px)/blur(72px) 层在窗口持续改变尺寸时每帧都要重算，
+   这是"元素鬼畜"的主因；停手后由壳移除 .dsh-resizing 自动恢复。 */
+html.dsh-resizing *,
+html.dsh-resizing *::before,
+html.dsh-resizing *::after {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+html.dsh-resizing body::before,
+html.dsh-resizing body::after {
+  animation: none !important;
+  will-change: auto;
+}
+html.dsh-resizing .card,
+html.dsh-resizing main section { animation: none !important; }
+
+/* 平时让这些层走合成器，别在 resize 时挤占主线程 */
+body::before, body::after { will-change: transform; transform: translateZ(0); }
+
+
+/* ---- 自定义背景图 ----
+   复用 body::before / ::after 这两层（原来画流体色斑）：
+   ::before 铺图（带模糊），::after 当遮罩（强度由 JS 写 --wall-dim-color）。
+   同一张图也会被桌面壳注入到 dsh 官方界面上，两个视图看起来是一整块背景。 */
+html[data-bg="image"] body::before {
+  inset: calc(var(--wall-blur, 0px) * -2 - 8px);
+  background-image: var(--wallpaper-image, none);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  filter: blur(var(--wall-blur, 0px)) saturate(104%);
+  opacity: 1;
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+html[data-bg="image"] body::after {
+  inset: 0;
+  background: var(--wall-dim-color, rgb(0 0 0 / 35%));
+  filter: none;
+  opacity: 1;
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+html[data-bg="image"] { --card: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 82%, transparent); }
+
 </style>
 </head>
 
@@ -1263,7 +1995,7 @@ input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transpar
       <rect x="2.5" y="4.5" width="19" height="15" rx="3.5"/>
       <path d="M6.5 9.5h11M6.5 13h7"/>
     </svg>
-    <span class="app-title">便携版 DeepSeek Harness</span>
+    <span class="app-title">DSH to go</span>
     <span class="sub" id="hdr-sub">正在读取状态…</span>
     <span class="pill" id="hdr-login"><span class="dot off"></span> 未解锁</span>
   </h1>
@@ -2918,6 +3650,7 @@ input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transpar
           <select id="ap-bg">
             <option value="fluid">流体渐变</option>
             <option value="solid">纯色</option>
+            <option value="image">自定义图片</option>
           </select>
         </div>
         <div class="f">
@@ -2927,6 +3660,32 @@ input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transpar
             <option value="calm">克制</option>
             <option value="off">关闭</option>
           </select>
+        </div>
+      </div>
+
+      <div id="ap-wall" hidden>
+        <label>自定义背景</label>
+        <div class="row">
+          <div class="f" style="flex:1 1 260px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="file" id="ap-wall-file" accept="image/png,image/jpeg,image/webp" style="display:none">
+              <button type="button" class="btn" id="ap-wall-pick">选择图片…</button>
+              <button type="button" class="btn" id="ap-wall-clear" hidden>移除背景</button>
+              <span class="sub" id="ap-wall-size"></span>
+            </div>
+            <p class="sub" style="margin:8px 0 0">
+              图片会压到最长边 2560px 存进 <code>data/wallpaper/</code>，跟着盘走；
+              配置页和 <strong>dsh 界面</strong>用的是同一张，看起来是一整块背景。
+            </p>
+          </div>
+          <div class="f">
+            <label for="ap-wall-dim">遮罩</label>
+            <input type="range" id="ap-wall-dim" min="0" max="80" step="5" value="35">
+          </div>
+          <div class="f">
+            <label for="ap-wall-blur">模糊</label>
+            <input type="range" id="ap-wall-blur" min="0" max="24" step="2" value="0">
+          </div>
         </div>
       </div>
 
@@ -2976,6 +3735,286 @@ input, select, textarea { background: color-mix(in srgb, var(--bg) 88%, transpar
     <div class="flash" id="login-out"></div>
   </div>
 </div>
+
+<style>
+/* ===== 对齐层（src/dsh-align.css）：把老类名挂到官方 token 上 ===== */
+/* =============================================================================
+   dsh-align.css —— 把配置页挂到「官方 Web UI 的设计 token」上
+
+   顺序：third_party/dsh-theme/*（官方变量） → legacy.css（老结构） → 本文件（对齐层）
+   本文件做两件事：
+     1) 把本页既有的变量名（--bg/--card/--fg/…）重新指向官方的语义别名
+        （--dsw-alias-bg-layer-1 / --dsw-alias-label-primary / …），
+        这样页面里几千处 var() 不用改，颜色却来自官方调色板；
+     2) 把控件外观（圆角、边框、主按钮、分段导航、输入框、滚动条、焦点环）
+        按官方 Web UI 的观感重写一遍。
+
+   官方深色靠 body[data-ds-dark-theme] 存在与否切换（见 src/app.js 的 applyTheme）。
+   ============================================================================= */
+
+/* ---- 1. 变量对位：本页老名字 → 官方 token ------------------------------- */
+/* ⚠️ 必须写在 body 上：官方的 --dsw-alias-* 只在 body 作用域里有值，
+   写到 :root(html) 会变成「无效值」，继承下去整页变量都空掉。 */
+body {
+  /* 底色与层级 */
+  --bg: var(--dsw-alias-bg-base);
+  --card: var(--dsw-alias-bg-layer-1);
+  --card-2: var(--dsw-alias-bg-layer-2);
+  --primary: var(--dsw-alias-bg-layer-3);
+  --secondary: var(--dsw-alias-interactive-bg-hover-solid);
+
+  /* 文字 */
+  --fg: var(--dsw-alias-label-primary);
+  --muted: var(--dsw-alias-label-secondary);
+
+  /* 线 */
+  --border: var(--dsw-alias-border-l2);
+  --border-strong: var(--dsw-alias-border-l3);
+
+  /* 品牌与状态
+     注意：官方 --dsw-alias-brand-primary 在深色主题下是"近白色"（配深色文字用），
+     直接拿它当按钮/开关的填充色会变成白底白字。所以填充单独用 --brand-fill。 */
+  --brand-fill: var(--accent);
+  --brand-fill-hover: color-mix(in srgb, var(--accent) 86%, var(--dsw-alias-label-primary));
+  --on-accent: #fff;
+  --danger: var(--dsw-alias-state-error-primary);
+  --warn: var(--dsw-alias-state-warn-primary);
+  --ok: var(--dsw-alias-state-success-primary);
+  --code: var(--dsw-alias-markdown-code-block);
+
+  /* 圆角与节奏：官方刻度 4/8/12/16/20/28 */
+  --r: var(--dsw-radius-md);
+  --r-sm: var(--dsw-radius-sm);
+  --r-lg: var(--dsw-radius-lg);
+  --r-panel: var(--dsw-radius-panel);
+  --gap: 14px;
+
+  /* 字体：官方字体栈（系统字体，离线可用） */
+  --font-ui: var(--dsw-font-family);
+  --font-mono: var(--ds-font-family-code);
+  --font-brand: var(--dsw-font-family-brand);
+
+  /* 动效：沿用官方时长与曲线；本页另有 --t-fast/--t/--t-slow */
+  --t-fast: var(--ds-transition-duration-fast);
+  --t: var(--ds-transition-duration);
+  --t-slow: var(--ds-transition-duration-slow);
+  --e-out: var(--ds-ease-in-out);
+  --e-in: var(--ds-ease-in-out);
+}
+
+/* ---- 2. 基础观感 --------------------------------------------------------- */
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 官方那套"超椭圆"圆角：支持的浏览器上，卡片/按钮的圆角更像 squircle */
+@supports (corner-shape: superellipse(1.5)) {
+  .card, .btn, nav button, input, select, textarea, .pill, .badge {
+    corner-shape: var(--dsw-corner-shape);
+  }
+}
+
+/* 顶栏：与页面同色、细分隔线，不再有一块深色底 */
+header {
+  background: var(--dsw-alias-bg-layer-1);
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  padding: 0 16px;
+  min-height: 44px;
+}
+header h1 { font-size: 15px; font-weight: 600; letter-spacing: .1px; }
+header h1 .pill, header .pill { font-size: 11.5px; }
+
+/* 导航：改成分段控件（官方 sidebar/tab 的观感），而不是一排描边按钮 */
+nav {
+  background: var(--dsw-alias-bg-base);
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  padding: 8px 16px;
+  gap: 2px;
+}
+nav button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: var(--dsw-radius-sm);
+  border: 1px solid transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+}
+nav button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+nav button[aria-selected="true"] {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+  border-color: transparent;
+  font-weight: 500;
+}
+nav button[aria-selected="true"]::after { content: none; }   /* 去掉旧的下划线装饰 */
+
+/* 卡片：官方 settings 卡片的填充/描边 */
+.card {
+  background: var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-1));
+  border: 1px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l2));
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+}
+.card h2 { font-size: 14px; font-weight: 600; }
+.card h3 { font-size: 12.5px; color: var(--dsw-alias-label-tertiary); font-weight: 500; }
+
+/* 按钮：官方主按钮是深蓝填充 + 白字；次按钮是描边幽灵 */
+.btn {
+  border-radius: var(--dsw-radius-sm);
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  transition: background var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.btn:hover { background: var(--dsw-alias-interactive-bg-hover); border-color: var(--dsw-alias-border-l3); }
+.btn.primary, .btn[data-kind="primary"] {
+  background: var(--brand-fill);
+  color: var(--on-accent);          /* 填充色是饱和蓝，一律白字；别再用 label-inverted（深色下那是给白底配的深字） */
+  border-color: transparent;
+}
+.btn.primary:hover:not(:disabled), .btn[data-kind="primary"]:hover:not(:disabled) { background: var(--brand-fill-hover); }
+.btn.danger, .btn[data-kind="danger"] {
+  color: var(--dsw-alias-state-error-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 输入框：官方用 layer-2 填充 + 细描边，聚焦时描边变亮而不是发光 */
+input, select, textarea {
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  min-height: 36px;
+  color: var(--dsw-alias-label-primary);
+}
+input:hover, select:hover, textarea:hover { border-color: var(--dsw-alias-border-l3); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--brand-fill);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-fill) 22%, transparent);
+}
+::placeholder { color: var(--dsw-alias-label-tertiary); }
+
+/* 标签文字 */
+label, .sub { color: var(--dsw-alias-label-secondary); }
+label { font-size: 12.5px; }
+
+/* 药丸/徽标 */
+.pill, .badge {
+  border-radius: var(--dsw-radius-xs);
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11.5px;
+  padding: 2px 8px;
+}
+.pill.ok, .badge.ok { color: var(--dsw-alias-state-success-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, transparent); }
+.pill.err, .badge.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent); }
+.pill.warn, .badge.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, transparent); }
+
+/* 表格 / 代码块 */
+table { border-color: var(--dsw-alias-border-l1); }
+th { color: var(--dsw-alias-label-tertiary); font-weight: 500; }
+code, pre {
+  background: var(--dsw-alias-markdown-code-block);
+  border-radius: var(--dsw-radius-sm);
+  font-family: var(--ds-font-family-code);
+}
+
+/* 品牌字样：官方用 Montserrat，没装就回退系统字体（不打包字体文件） */
+.dsh-wordmark {
+  font-family: var(--font-brand);
+  font-weight: 500;
+  letter-spacing: .2px;
+}
+
+/* 链接用官方的 link 蓝 */
+a { color: var(--dsw-alias-link); }
+
+/* 焦点环跟官方一致（focus.css 里的 --dsw-focus-* 若存在就复用） */
+:focus-visible {
+  outline: 2px solid var(--brand-fill);
+  outline-offset: 2px;
+}
+
+/* 深色下把"危险"按钮的红色压一点，避免刺眼 */
+body[data-ds-dark-theme] .btn.danger:hover {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 16%, transparent);
+}
+
+
+/* ---- 开关：统一成 dsh 语义 ----
+   旧样式用 --secondary / --colorNeutralBackground3 当轨道，在深色里偏亮，
+   勾上之后又用 brand-primary（深色下是白的）→ 看着就是一条白膏药。 */
+label.switch .track,
+#tab-sites label.switch .track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+  border: 1px solid var(--dsw-alias-border-l3);
+  box-shadow: none;
+  transition: background var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out);
+}
+label.switch .track::after,
+#tab-sites label.switch .track::after {
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--dsw-alias-label-secondary);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  transition: transform var(--t-fast) var(--e-out), background var(--t-fast) var(--e-out);
+}
+label.switch:hover .track,
+#tab-sites label.switch:hover .track { border-color: var(--dsw-alias-border-l2); }
+label.switch input:checked + .track,
+#tab-sites label.switch input:checked + .track {
+  background: var(--brand-fill);
+  border-color: var(--brand-fill);
+  box-shadow: none;
+}
+label.switch input:checked + .track::after,
+#tab-sites label.switch input:checked + .track::after {
+  background: #fff;
+  transform: translateX(16px);
+}
+label.switch input:focus-visible + .track,
+#tab-sites label.switch input:focus-visible + .track {
+  outline: 2px solid var(--brand-fill);
+  outline-offset: 2px;
+}
+label.switch .txt,
+#tab-sites label.switch .txt { color: var(--dsw-alias-label-secondary); font-size: 12.5px; }
+label.switch input:checked ~ .txt,
+#tab-sites label.switch input:checked ~ .txt { color: var(--dsw-alias-label-primary); }
+label.switch { min-height: 34px; gap: 8px; }
+
+/* 插件页顶部那排"显示哪些"：跟官方一样靠左成组，中间留 16px */
+#tab-plugins .plug-filter,
+#tab-plugins label.switch + label.switch { margin-left: 4px; }
+
+
+/* ---- 窗口变窄时可读性：不跟着缩，反而略放一档（以前窄窗里 12.5px 一片，看着糊） ---- */
+html.w-md, html.w-md body { font-size: 14.5px; }
+html.w-md table, html.w-md .mtable { font-size: 13.5px; }
+html.w-md .pill, html.w-md .steps span, html.w-md label.switch .txt { font-size: 13px; }
+html.w-md h1 { font-size: 18px; }
+html.w-md h2 { font-size: 16px; }
+html.w-sm, html.w-sm body { font-size: 15px; }
+html.w-sm table, html.w-sm .mtable { font-size: 14px; }
+html.w-sm h1 { font-size: 18.5px; }
+
+</style>
 
 <script>/*{{FLUENT_BUNDLE_BEGIN}}*/(()=>{function a(t,e,o,r){var n=arguments.length,i=n<3?e:r===null?r=Object.getOwnPropertyDescriptor(e,o):r,l;if(typeof Reflect=="object"&&typeof Reflect.decorate=="function")i=Reflect.decorate(t,e,o,r);else for(var c=t.length-1;c>=0;c--)(l=t[c])&&(i=(n<3?l(i):n>3?l(e,o,i):l(e,o))||i);return n>3&&i&&Object.defineProperty(e,o,i),i}var xt=class{constructor(e,o,r=!1){this.evaluate=e,this.policy=o,this.isVolatile=r}};var Q;(function(t){t[t.needsArrayObservation=1101]="needsArrayObservation",t[t.onlySetDOMPolicyOnce=1201]="onlySetDOMPolicyOnce",t[t.bindingInnerHTMLRequiresTrustedTypes=1202]="bindingInnerHTMLRequiresTrustedTypes",t[t.twoWayBindingRequiresObservables=1203]="twoWayBindingRequiresObservables",t[t.hostBindingWithoutHost=1204]="hostBindingWithoutHost",t[t.unsupportedBindingBehavior=1205]="unsupportedBindingBehavior",t[t.directCallToHTMLTagNotAllowed=1206]="directCallToHTMLTagNotAllowed",t[t.onlySetTemplatePolicyOnce=1207]="onlySetTemplatePolicyOnce",t[t.cannotSetTemplatePolicyAfterCompilation=1208]="cannotSetTemplatePolicyAfterCompilation",t[t.blockedByDOMPolicy=1209]="blockedByDOMPolicy",t[t.invalidHydrationAttributeMarker=1210]="invalidHydrationAttributeMarker",t[t.duplicateRenderInstruction=1211]="duplicateRenderInstruction",t[t.missingElementDefinition=1401]="missingElementDefinition",t[t.noRegistrationForContext=1501]="noRegistrationForContext",t[t.noFactoryForResolver=1502]="noFactoryForResolver",t[t.invalidResolverStrategy=1503]="invalidResolverStrategy",t[t.cannotAutoregisterDependency=1504]="cannotAutoregisterDependency",t[t.cannotResolveKey=1505]="cannotResolveKey",t[t.cannotConstructNativeFunction=1506]="cannotConstructNativeFunction",t[t.cannotJITRegisterNonConstructor=1507]="cannotJITRegisterNonConstructor",t[t.cannotJITRegisterIntrinsic=1508]="cannotJITRegisterIntrinsic",t[t.cannotJITRegisterInterface=1509]="cannotJITRegisterInterface",t[t.invalidResolver=1510]="invalidResolver",t[t.invalidKey=1511]="invalidKey",t[t.noDefaultResolver=1512]="noDefaultResolver",t[t.cyclicDependency=1513]="cyclicDependency",t[t.connectUpdateRequiresController=1514]="connectUpdateRequiresController"})(Q||(Q={}));var Ge=t=>typeof t=="function",ke=t=>typeof t=="string",ha=()=>{};var Bc=Object.create(null),se={warn(t,e){},error(t,e){return new Error(`Error ${t}`)},addMessages(t){Object.assign(Bc,t)}};var ga=Object.freeze([]);function Kt(){let t=new Map;return Object.freeze({register(e){return t.has(e.type)?!1:(t.set(e.type,e),!0)},getByType(e){return t.get(e)},getForInstance(e){if(e!=null)return t.get(e.constructor)}})}function sr(){let t=new WeakMap;return function(e){let o=t.get(e);if(o===void 0){let r=Reflect.getPrototypeOf(e);for(;o===void 0&&r!==null;)o=t.get(r),r=Reflect.getPrototypeOf(r);o=o===void 0?[]:o.slice(0),t.set(e,o)}return o}}function Se(t){t.prototype.toJSON=ha}var lr=class extends xt{createObserver(){return this}bind(e){return this.evaluate(e.source,e.context)}};Se(lr);function cr(t,e){return new lr(t,e)}var Jt=class{constructor(e,o){this.sub1=void 0,this.sub2=void 0,this.spillover=void 0,this.subject=e,this.sub1=o}has(e){return this.spillover===void 0?this.sub1===e||this.sub2===e:this.spillover.indexOf(e)!==-1}subscribe(e){let o=this.spillover;if(o===void 0){if(this.has(e))return;if(this.sub1===void 0){this.sub1=e;return}if(this.sub2===void 0){this.sub2=e;return}this.spillover=[this.sub1,this.sub2,e],this.sub1=void 0,this.sub2=void 0}else o.indexOf(e)===-1&&o.push(e)}unsubscribe(e){let o=this.spillover;if(o===void 0)this.sub1===e?this.sub1=void 0:this.sub2===e&&(this.sub2=void 0);else{let r=o.indexOf(e);r!==-1&&o.splice(r,1)}}notify(e){let o=this.spillover,r=this.subject;if(o===void 0){let n=this.sub1,i=this.sub2;n!==void 0&&n.handleChange(r,e),i!==void 0&&i.handleChange(r,e)}else for(let n=0,i=o.length;n<i;++n)o[n].handleChange(r,e)}},Qt=class{constructor(e){this.subscribers={},this.subjectSubscribers=null,this.subject=e}notify(e){var o,r;(o=this.subscribers[e])===null||o===void 0||o.notify(e),(r=this.subjectSubscribers)===null||r===void 0||r.notify(e)}subscribe(e,o){var r,n;let i;o?i=(r=this.subscribers[o])!==null&&r!==void 0?r:this.subscribers[o]=new Jt(this.subject):i=(n=this.subjectSubscribers)!==null&&n!==void 0?n:this.subjectSubscribers=new Jt(this.subject),i.subscribe(e)}unsubscribe(e,o){var r,n;o?(r=this.subscribers[o])===null||r===void 0||r.unsubscribe(e):(n=this.subjectSubscribers)===null||n===void 0||n.unsubscribe(e)}};var Xe=[],Fn=[],$c=globalThis.requestAnimationFrame,Cn=!0;function wc(){if(Fn.length)throw Fn.shift()}function Pc(t){try{t.call()}catch(e){if(Cn)Fn.push(e),setTimeout(wc,0);else throw Xe.length=0,e}}function An(){let e=0;for(;e<Xe.length;)if(Pc(Xe[e]),e++,e>1024){for(let o=0,r=Xe.length-e;o<r;o++)Xe[o]=Xe[o+e];Xe.length-=e,e=0}Xe.length=0}function ma(t){Xe.push(t),Xe.length<2&&(Cn?$c(An):An())}var C=Object.freeze({enqueue:ma,next:()=>new Promise(ma),process:An,setMode:t=>Cn=t});var yt=Object.freeze({unknown:void 0,coupled:1}),f=(()=>{let t=C.enqueue,e=/(:|&&|\|\||if|\?\.)/,o=new WeakMap,r,n=p=>{throw se.error(Q.needsArrayObservation)};function i(p){var d;let v=(d=p.$fastController)!==null&&d!==void 0?d:o.get(p);return v===void 0&&(Array.isArray(p)?v=n(p):o.set(p,v=new Qt(p))),v}let l=sr();class c{constructor(d){this.name=d,this.field=`_${d}`,this.callback=`${d}Changed`}getValue(d){return r!==void 0&&r.watch(d,this.name),d[this.field]}setValue(d,v){let $=this.field,N=d[$];if(N!==v){d[$]=v;let O=d[this.callback];Ge(O)&&O.call(d,N,v),i(d).notify(this.name)}}}class u extends Jt{constructor(d,v,$=!1){super(d,v),this.expression=d,this.isVolatileBinding=$,this.needsRefresh=!0,this.needsQueue=!0,this.isAsync=!0,this.first=this,this.last=null,this.propertySource=void 0,this.propertyName=void 0,this.notifier=void 0,this.next=void 0}setMode(d){this.isAsync=this.needsQueue=d}bind(d){let v=this.observe(d.source,d.context);return!d.isBound&&this.requiresUnbind(d)&&d.onUnbind(this),v}requiresUnbind(d){return d.sourceLifetime!==yt.coupled||this.first!==this.last||this.first.propertySource!==d.source}unbind(d){this.dispose()}observe(d,v){this.needsRefresh&&this.last!==null&&this.dispose();let $=r;r=this.needsRefresh?this:void 0,this.needsRefresh=this.isVolatileBinding;let N;try{N=this.expression(d,v)}finally{r=$}return N}disconnect(){this.dispose()}dispose(){if(this.last!==null){let d=this.first;for(;d!==void 0;)d.notifier.unsubscribe(this,d.propertyName),d=d.next;this.last=null,this.needsRefresh=this.needsQueue=this.isAsync}}watch(d,v){let $=this.last,N=i(d),O=$===null?this.first:{};if(O.propertySource=d,O.propertyName=v,O.notifier=N,N.subscribe(this,v),$!==null){if(!this.needsRefresh){let ye;r=void 0,ye=$.propertySource[$.propertyName],r=this,d===ye&&(this.needsRefresh=!0)}$.next=O}this.last=O}handleChange(){this.needsQueue?(this.needsQueue=!1,t(this)):this.isAsync||this.call()}call(){this.last!==null&&(this.needsQueue=this.isAsync,this.notify(this))}*records(){let d=this.first;for(;d!==void 0;)yield d,d=d.next}}return Se(u),Object.freeze({setArrayObserverFactory(p){n=p},getNotifier:i,track(p,d){r&&r.watch(p,d)},trackVolatile(){r&&(r.needsRefresh=!0)},notify(p,d){i(p).notify(d)},defineProperty(p,d){ke(d)&&(d=new c(d)),l(p).push(d),Reflect.defineProperty(p,d.name,{enumerable:!0,get(){return d.getValue(this)},set(v){d.setValue(this,v)}})},getAccessors:l,binding(p,d,v=this.isVolatileBinding(p)){return new u(p,d,v)},isVolatileBinding(p){return e.test(p.toString())}})})();function y(t,e){f.defineProperty(t,e)}var fa=(()=>{let t=null;return{get(){return t},set(e){t=e}}})(),at=Object.freeze({default:{index:0,length:0,get event(){return at.getEvent()},eventDetail(){return this.event.detail},eventTarget(){return this.event.target}},getEvent(){return fa.get()},setEvent(t){fa.set(t)}});var In=class extends xt{createObserver(e){return f.binding(this.evaluate,e,this.isVolatile)}};function dr(t,e,o=f.isVolatileBinding(t)){return new In(t,e,o)}var Z=Object.freeze({none:0,attribute:1,booleanAttribute:2,property:3,content:4,tokenList:5,event:6}),ba=t=>t,Nc=globalThis.trustedTypes?globalThis.trustedTypes.createPolicy("fast-html",{createHTML:ba}):{createHTML:ba},ur=Object.freeze({createHTML(t){return Nc.createHTML(t)},protect(t,e,o,r){return r}}),Tc=ur,st=Object.freeze({get policy(){return ur},setPolicy(t){if(ur!==Tc)throw se.error(Q.onlySetDOMPolicyOnce);ur=t},setAttribute(t,e,o){o==null?t.removeAttribute(e):t.setAttribute(e,o)},setBooleanAttribute(t,e,o){o?t.setAttribute(e,""):t.removeAttribute(e)}});var Dn="boolean",va="reflect",Zt=Object.freeze({locate:sr()}),ya={toView(t){return t?"":null},fromView(t){return!!t}};function xa(t){if(t==null)return null;let e=t*1;return isNaN(e)?null:e}var he={toView(t){let e=xa(t);return e&&e.toString()},fromView:xa},Io=class t{constructor(e,o,r=o.toLowerCase(),n=va,i){this.guards=new Set,this.Owner=e,this.name=o,this.attribute=r,this.mode=n,this.converter=i,this.fieldName=`_${o}`,this.callbackName=`${o}Changed`,this.hasCallback=this.callbackName in e.prototype,n===Dn&&i===void 0&&(this.converter=ya)}setValue(e,o){let r=e[this.fieldName],n=this.converter;n!==void 0&&(o=n.fromView(o)),r!==o&&(e[this.fieldName]=o,this.tryReflectToAttribute(e),this.hasCallback&&e[this.callbackName](r,o),e.$fastController.notify(this.name))}getValue(e){return f.track(e,this.name),e[this.fieldName]}onAttributeChangedCallback(e,o){this.guards.has(e)||(this.guards.add(e),this.mode===Dn?this.setValue(e,o!==null):this.setValue(e,o),this.guards.delete(e))}tryReflectToAttribute(e){let o=this.mode,r=this.guards;r.has(e)||o==="fromView"||C.enqueue(()=>{r.add(e);let n=e[this.fieldName];switch(o){case va:{let i=this.converter;st.setAttribute(e,this.attribute,i!==void 0?i.toView(n):n);break}case Dn:st.setBooleanAttribute(e,this.attribute,n);break}r.delete(e)})}static collect(e,...o){let r=[];o.push(Zt.locate(e));for(let n=0,i=o.length;n<i;++n){let l=o[n];if(l!==void 0)for(let c=0,u=l.length;c<u;++c){let p=l[c];ke(p)?r.push(new t(e,p)):r.push(new t(e,p.property,p.attribute,p.mode,p.converter))}}return r}};function s(t,e){let o;function r(n,i){arguments.length>1&&(o.property=i),Zt.locate(n.constructor).push(o)}if(arguments.length>1){o={},r(t,e);return}return o=t===void 0?{}:t,r}var zn;function ka(t){return t.reduce((e,o)=>(o instanceof Be?e.push(...ka(o.styles)):e.push(o),e),[])}var Be=class t{get strategy(){return this._strategy===null&&(zn||t.setDefaultStrategy(t.supportsAdoptedStyleSheets?Fc():Cc()),this.withStrategy(zn)),this._strategy}constructor(e){this.styles=e,this.targets=new WeakSet,this._strategy=null}addStylesTo(e){this.strategy.addStylesTo(e),this.targets.add(e)}removeStylesFrom(e){this.strategy.removeStylesFrom(e),this.targets.delete(e)}isAttachedTo(e){return this.targets.has(e)}withStrategy(e){return this._strategy=new e(ka(this.styles)),this}static setDefaultStrategy(e){zn=e}static normalize(e){return e===void 0?void 0:Array.isArray(e)?new t(e):e instanceof t?e:new t([e])}};Be.supportsAdoptedStyleSheets=Array.isArray(document.adoptedStyleSheets)&&"replace"in CSSStyleSheet.prototype;function Fc(){let t=new Map;return class{constructor(o){this.sheets=o.map(r=>{if(r instanceof CSSStyleSheet)return r;let n=t.get(r);return n===void 0&&(n=new CSSStyleSheet,n.replaceSync(r),t.set(r,n)),n})}addStylesTo(o){let r=o;r.adoptedStyleSheets=[...r.adoptedStyleSheets,...this.sheets]}removeStylesFrom(o){let r=o;r.adoptedStyleSheets=r.adoptedStyleSheets.filter(n=>this.sheets.indexOf(n)===-1)}}}var Ac=0;function Cc(){return class{constructor(e){this.styles=e,this.styleClass=`fast-${++Ac}`}addStylesTo(e){let o=e===document?document.body:e;for(let r=0;r<this.styles.length;r++){let n=document.createElement("style");n.innerHTML=this.styles[r],n.className=this.styleClass,o.append(n)}}removeStylesFrom(e){let o=e===document?document.body:e,r=o.querySelectorAll(`.${this.styleClass}`);for(let n=0,i=r.length;n<i;++n)o.removeChild(r[n])}}}var En={define(t,e,o,r,n){r.define(t,e,o)}};var Ic={},Sa=new WeakMap,On=Kt(),pr=new WeakMap,Ba=new WeakMap,eo=Object.freeze({register(t){if(!On.register(t))return!1;let e=wa(t.registry);return Object.prototype.hasOwnProperty.call(e,t.name)||f.defineProperty(e,t.name),e[t.name]=t.type,!0},getByType:On.getByType,getForInstance:On.getForInstance,whenRegistered:Dc});function wa(t=customElements){if(t===customElements)return Ic;let e=Sa.get(t);return e||(e={},Sa.set(t,e)),e}function $a(t){return t===void 0?void 0:eo.getByType(t)}function Dc(t,e=customElements){let o=wa(e);Object.prototype.hasOwnProperty.call(o,t)||f.defineProperty(o,t);let r=$a(o[t]);return r!==void 0?Promise.resolve(r):new Promise(n=>{let i=f.getNotifier(o),l={handleChange:()=>{let c=$a(o[t]);c!==void 0&&(i.unsubscribe(l,t),n(c))}};i.subscribe(l,t)})}function Pa(t,e){if(Ba.has(e))return!1;let o=pr.get(t),r=o===void 0;o===void 0&&(o=new Set,pr.set(t,o));let n=new WeakRef(e);return o.add(n),Ba.set(e,n),r}function Na(t,e){let o=pr.get(t);if(o!==void 0){pr.delete(t);for(let r of o){let n=r.deref();n!==void 0&&e(n)}}}var Ta={mode:"open"},Fa={},Aa=new Set,gr=new WeakMap,hr=new WeakMap,Lt=new WeakMap,Ca=new WeakMap,zc=new WeakMap;function Ec(t){return Ge(t)}function Oc(t){return typeof t?.then=="function"}function Ia(t,e){if(hr.delete(t),t.template===void 0&&e!==void 0&&(t.template=e),t.template!==void 0)return Lt.delete(t),gr.delete(t),t.template}function Hn(t,e=t.registry,o){if(!o?.length)return;let r=t,n=Ca.get(r);if(!n?.has(e)){n===void 0&&(n=new WeakSet,Ca.set(r,n)),n.add(e);for(let i of o)i(t)}}function mr(t){var e;return(e=zc.get(t))!==null&&e!==void 0?e:null}function Ln(t){if(t.template!==void 0)return Lt.delete(t),t.template;let e=hr.get(t);if(e)return e;let o=gr.get(t);if(!o)return;Lt.delete(t);let r;try{r=o(t)}catch(n){throw Lt.set(t,n),n}if(Oc(r)){let n=Promise.resolve(r).then(i=>Ia(t,i)).catch(i=>{throw hr.delete(t),Lt.set(t,i),i});return hr.set(t,n),n}return Ia(t,r)}function Hc(t,e){let o=t;if(e===void 0){Lt.delete(o);return}Lt.set(o,e)}var Le=class t{get isDefined(){return this.platformDefined}constructor(e,o=e.definition){var r;this.platformDefined=!1,ke(o)&&(o={name:o}),this.type=e,this.name=o.name,this.registry=(r=o.registry)!==null&&r!==void 0?r:customElements,Ec(o.template)?gr.set(this,o.template):this.template=o.template;let n=e.prototype,i=Io.collect(e,o.attributes),l=new Array(i.length),c={},u={};for(let p=0,d=i.length;p<d;++p){let v=i[p];l[p]=v.attribute,c[v.name]=v,u[v.attribute]=v,f.defineProperty(n,v)}Reflect.defineProperty(e,"observedAttributes",{value:l,enumerable:!0}),this.attributes=i,this.propertyLookup=c,this.attributeLookup=u,this.shadowOptions=o.shadowOptions===void 0?Ta:o.shadowOptions===null?void 0:Object.assign(Object.assign({},Ta),o.shadowOptions),this.elementOptions=o.elementOptions===void 0?Fa:Object.assign(Object.assign({},Fa),o.elementOptions),this.styles=Be.normalize(o.styles),this.schema=o.schema,eo.register(this)}define(e=this.registry,o){let r=this.type;if(!e.get(this.name)){if(Hn(this,e,o),this.template===void 0&&gr.has(this))return Promise.resolve().then(()=>Ln(this)).then(i=>{if(i!==void 0&&!e.get(this.name)){let l=this.platformDefined;this.platformDefined=!0,En.define(this.name,r,this.elementOptions,e,l)}}).catch(i=>{Hc(this,i),f.notify(this,"template")}),this;let n=this.platformDefined;this.platformDefined=!0,En.define(this.name,r,this.elementOptions,e,n)}return this}static compose(e,o){let r=Aa.has(e)||eo.getByType(e)?new t(class extends e{},o):new t(e,o);return Promise.resolve(r)}static registerBaseType(e){Aa.add(e)}};Le.getByType=eo.getByType;Le.getForInstance=eo.getForInstance;f.defineProperty(Le.prototype,"template");var Lc={bubbles:!0,composed:!0,cancelable:!0},Mn="isConnected",Ea=new WeakMap,Rn=Symbol("fast-late-attribute-observer");function fr(t){var e,o;return(o=(e=t.shadowRoot)!==null&&e!==void 0?e:Ea.get(t))!==null&&o!==void 0?o:null}var Da,$e;(function(t){t[t.connecting=0]="connecting",t[t.connected=1]="connected",t[t.disconnecting=2]="disconnecting",t[t.disconnected=3]="disconnected"})($e||($e={}));var kt=class t{get isConnected(){return f.track(this,Mn),this.stage===$e.connected}get context(){var e,o;return(o=(e=this.view)===null||e===void 0?void 0:e.context)!==null&&o!==void 0?o:at.default}get isBound(){var e,o;return(o=(e=this.view)===null||e===void 0?void 0:e.isBound)!==null&&o!==void 0?o:!1}get sourceLifetime(){var e;return(e=this.view)===null||e===void 0?void 0:e.sourceLifetime}get template(){var e;if(this._template===null){let o=this.definition;this.source.resolveTemplate?this._template=this.source.resolveTemplate():o.template&&(this._template=(e=o.template)!==null&&e!==void 0?e:null)}return this._template}set template(e){this._template!==e&&(this._template=e,this.needsInitialization||this.renderTemplate(e))}get shadowOptions(){return this._shadowRootOptions}set shadowOptions(e){if(this._shadowRootOptions===void 0&&e!==void 0){this._shadowRootOptions=e;let o=this.source.shadowRoot;o?this.hasExistingShadowRoot=!0:(o=this.source.attachShadow(e),e.mode==="closed"&&Ea.set(this.source,o))}}get mainStyles(){var e;if(this._mainStyles===null){let o=this.definition;this.source.resolveStyles?this._mainStyles=this.source.resolveStyles():o.styles&&(this._mainStyles=(e=o.styles)!==null&&e!==void 0?e:null)}return this._mainStyles}set mainStyles(e){this._mainStyles!==e&&(this._mainStyles!==null&&this.removeStyles(this._mainStyles),this._mainStyles=e,this.needsInitialization||this.addStyles(e))}constructor(e,o){this.boundObservables=null,this.needsInitialization=!0,this.hasExistingShadowRoot=!1,this.isPrerendered=new Promise(i=>{this._resolvePrerendered=i}),this.isHydrated=new Promise(i=>{this._resolveHydrated=i}),this._template=null,this.stage=$e.disconnected,this.guardBehaviorConnection=!1,this.behaviors=null,this.behaviorsConnected=!1,this._mainStyles=null,this.$fastController=this,this.view=null,this._notifier=new Qt(e),this.source=e,this.definition=o,this.shadowOptions=o.shadowOptions;let r=Reflect.getPrototypeOf(e),n=r===null?[]:f.getAccessors(r);if(n.length>0){let i=this.boundObservables=Object.create(null);for(let l=0,c=n.length;l<c;++l){let u=n[l].name,p=e[u];p!==void 0&&(delete e[u],i[u]=p)}Object.keys(i).length===0&&(this.boundObservables=null)}this.captureBoundObservables()}get subject(){return this._notifier.subject}notify(e){this._notifier.notify(e)}subscribe(e,o){this._notifier.subscribe(e,o)}unsubscribe(e,o){this._notifier.unsubscribe(e,o)}onUnbind(e){var o;(o=this.view)===null||o===void 0||o.onUnbind(e)}addBehavior(e){var o,r;let n=(o=this.behaviors)!==null&&o!==void 0?o:this.behaviors=new Map,i=(r=n.get(e))!==null&&r!==void 0?r:0;i===0?(n.set(e,1),e.addedCallback&&e.addedCallback(this),e.connectedCallback&&!this.guardBehaviorConnection&&(this.stage===$e.connected||this.stage===$e.connecting)&&e.connectedCallback(this)):n.set(e,i+1)}removeBehavior(e,o=!1){let r=this.behaviors;if(r===null)return;let n=r.get(e);n!==void 0&&(n===1||o?(r.delete(e),e.disconnectedCallback&&this.stage!==$e.disconnected&&e.disconnectedCallback(this),e.removedCallback&&e.removedCallback(this)):r.set(e,n-1))}addStyles(e){var o;if(!e)return;let r=this.source;e instanceof HTMLElement?((o=fr(r))!==null&&o!==void 0?o:this.source).append(e):e.isAttachedTo(r)||e.addStylesTo(r)}removeStyles(e){var o;if(!e)return;let r=this.source;e instanceof HTMLElement?((o=fr(r))!==null&&o!==void 0?o:r).removeChild(e):e.isAttachedTo(r)&&e.removeStylesFrom(r)}connect(){this.stage===$e.disconnected&&(this.stage=$e.connecting,this.captureBoundObservables(),this.syncLateAttributes(),this.observeLateAttributes(),this.bindObservables(),this.connectBehaviors(),this.needsInitialization?(this.renderTemplate(this.template),this.addStyles(this.mainStyles),this.needsInitialization=!1):this.view!==null&&this.view.bind(this.source),this.stage=$e.connected,f.notify(this,Mn))}bindObservables(){if(this.boundObservables!==null){let e=this.source,o=this.boundObservables,r=Object.keys(o);for(let n=0,i=r.length;n<i;++n){let l=r[n];e[l]=o[l]}this.boundObservables=null}}captureBoundObservables(){let e=this.source,o=Object.getOwnPropertyNames(e),r=i=>{let l=Reflect.getPrototypeOf(e);for(;l!==null;){let c=Reflect.getOwnPropertyDescriptor(l,i);if(c?.get||c?.set)return!0;l=Reflect.getPrototypeOf(l)}return!1},n=this.boundObservables;for(let i=0,l=o.length;i<l;++i){let u=o[i];if(!r(u))continue;let p=e[u];if(p===void 0){delete e[u];continue}delete e[u],(n??(n=this.boundObservables=Object.create(null)))[u]=p}}syncLateAttributes(){let e=mr(this.definition);if(e!==null)for(let o of Object.keys(e))this.source.hasAttribute(o)&&this.onAttributeChangedCallback(o,null,this.source.getAttribute(o))}observeLateAttributes(){let e=mr(this.definition);if(e===null)return;let o=this.source;o[Rn]===void 0&&(o[Rn]=new MutationObserver(r=>{let n=o.$fastController,i=mr(n.definition);if(i!==null)for(let l=0,c=r.length;l<c;++l){let u=r[l].attributeName;u===null||i[u]===void 0||n.onAttributeChangedCallback(u,null,o.getAttribute(u))}}),o[Rn].observe(o,{attributes:!0,attributeFilter:Object.keys(e)}))}connectBehaviors(){if(this.behaviorsConnected===!1){let e=this.behaviors;if(e!==null){this.guardBehaviorConnection=!0;for(let o of e.keys())o.connectedCallback&&o.connectedCallback(this);this.guardBehaviorConnection=!1}this.behaviorsConnected=!0}}disconnectBehaviors(){if(this.behaviorsConnected===!0){let e=this.behaviors;if(e!==null)for(let o of e.keys())o.disconnectedCallback&&o.disconnectedCallback(this);this.behaviorsConnected=!1}}disconnect(){this.stage===$e.connected&&(this.stage=$e.disconnecting,f.notify(this,Mn),this.view!==null&&this.view.unbind(),this.disconnectBehaviors(),this.stage=$e.disconnected)}onAttributeChangedCallback(e,o,r){let n=this.definition.attributeLookup[e];n!==void 0&&n.onAttributeChangedCallback(this.source,r)}emit(e,o,r){return this.stage===$e.connected?this.source.dispatchEvent(new CustomEvent(e,Object.assign(Object.assign({detail:o},Lc),r))):!1}renderTemplate(e){var o;let r=this.source,n=(o=fr(r))!==null&&o!==void 0?o:r;if(this.view!==null)this.view.dispose(),this.view=null;else if((!this.needsInitialization||this.hasExistingShadowRoot)&&(!this.hasExistingShadowRoot||!this.needsInitialization))for(let i=n.firstChild;i!==null;i=n.firstChild)n.removeChild(i);if(e){let i=this.hasExistingShadowRoot&&this.needsInitialization,l=!1;i&&t.hydrationHook&&(l=t.hydrationHook(this,e,r,n)),l||this.renderClientSide(e,r,n),this._resolvePrerendered(i),this._resolveHydrated(l)}else this.needsInitialization&&(this._resolvePrerendered(!1),this._resolveHydrated(!1))}renderClientSide(e,o,r){if(this.hasExistingShadowRoot){for(let n=r.firstChild;n!==null;n=r.firstChild)r.removeChild(n);this.hasExistingShadowRoot=!1}this.view=e.render(o,r,o),this.view.sourceLifetime=yt.coupled}static forCustomElement(e,o=!1){let r=e.$fastController;if(r!==void 0&&!o)return r;let n=Le.getForInstance(e);if(n===void 0)throw se.error(Q.missingElementDefinition);if(n.template===void 0&&Pa(n,e)){let i=f.getNotifier(n),l={handleChange:()=>{i.unsubscribe(l,"template"),Na(n,c=>{let u=c;t.forCustomElement(u,!0),u.isConnected&&u.$fastController.connect()})}};i.subscribe(l,"template")}return e.$fastController=new Da(e,n)}static setStrategy(e){Da=e}static installHydrationHook(e){t.hydrationHook=e}};kt.hydrationHook=null;Se(kt);kt.setStrategy(kt);function br(t){var e;return"adoptedStyleSheets"in t?t:(e=fr(t))!==null&&e!==void 0?e:t.getRootNode()}var vr=class t{constructor(e){let o=t.styleSheetCache;this.sheets=e.map(r=>{if(r instanceof CSSStyleSheet)return r;let n=o.get(r);return n===void 0&&(n=new CSSStyleSheet,n.replaceSync(r),o.set(r,n)),n})}addStylesTo(e){Oa(br(e),this.sheets)}removeStylesFrom(e){Ha(br(e),this.sheets)}};vr.styleSheetCache=new Map;var Mc=0,Rc=()=>`fast-${++Mc}`;function za(t){return t===document?document.body:t}var _n=class{constructor(e){this.styles=e,this.styleClass=Rc()}addStylesTo(e){e=za(br(e));let o=this.styles,r=this.styleClass;for(let n=0;n<o.length;n++){let i=document.createElement("style");i.innerHTML=o[n],i.className=r,e.append(i)}}removeStylesFrom(e){e=za(br(e));let o=e.querySelectorAll(`.${this.styleClass}`);for(let r=0,n=o.length;r<n;++r)e.removeChild(o[r])}},Oa=(t,e)=>{t.adoptedStyleSheets=[...t.adoptedStyleSheets,...e]},Ha=(t,e)=>{t.adoptedStyleSheets=t.adoptedStyleSheets.filter(o=>e.indexOf(o)===-1)};if(Be.supportsAdoptedStyleSheets){try{document.adoptedStyleSheets.push(),document.adoptedStyleSheets.splice(),Oa=(t,e)=>{t.adoptedStyleSheets.push(...e)},Ha=(t,e)=>{for(let o of e){let r=t.adoptedStyleSheets.indexOf(o);r!==-1&&t.adoptedStyleSheets.splice(r,1)}}}catch{}Be.setDefaultStrategy(vr)}else Be.setDefaultStrategy(_n);function La(t){let e=class extends t{constructor(){super(),kt.forCustomElement(this)}$emit(o,r,n){return this.$fastController.emit(o,r,n)}connectedCallback(){this.$fastController.connect()}disconnectedCallback(){this.$fastController.disconnect()}attributeChangedCallback(o,r,n){this.$fastController.onAttributeChangedCallback(o,r,n)}};return Le.registerBaseType(e),e}function _c(t){return typeof t?.then=="function"}function Vc(t,e,o){return Array.isArray(e)&&(o=e,e=void 0),(Ge(t)?Le.compose(t,e):Le.compose(this,t)).then(n=>{Hn(n,n.registry,o);let i=Ln(n);return _c(i)?i.then(()=>n.define().type):n.define().type})}function jc(t){return La(t)}var k=Object.assign(La(HTMLElement),{from:jc,define:Vc});function qe(t,e,o){return Object.assign({},o,{get(){return f.trackVolatile(),o.get.apply(this)}})}var Vn=Kt(),jn=Object.freeze({getForInstance:Vn.getForInstance,getByType:Vn.getByType,define(t){return Vn.register({type:t}),t}});function Ma(t,e){let o=[],r="";for(let n=0,i=t.length-1;n<i;++n){r+=t[n];let l=e[n];jn.getForInstance(l)!==void 0&&(l=l.createCSS()),l instanceof Be||l instanceof CSSStyleSheet?(r.trim()!==""&&(o.push(r),r=""),o.push(l)):r+=l}return r+=t[t.length-1],r.trim()!==""&&o.push(r),o}var g=((t,...e)=>new Be(Ma(t,e))),xr=class{constructor(e){this.value=e.length===0?"":e.length===1?e[0]:new Be(e)}createCSS(){return this.value}};jn.define(xr);g.partial=(t,...e)=>new xr(Ma(t,e));var Wn=`fast-${Math.random().toString(36).substring(2,8)}`,yr=`${Wn}{`,Do=`}${Wn}`,Wc=Do.length,Gc=0,zo=()=>`${Wn}-${++Gc}`,kr=Object.freeze({interpolation:t=>`${yr}${t}${Do}`,attribute:t=>`${zo()}="${yr}${t}${Do}"`,comment:t=>`<\!--${yr}${t}${Do}-->`}),Eo=Object.freeze({parse(t,e){let o=t.split(yr);if(o.length===1)return null;let r=[];for(let n=0,i=o.length;n<i;++n){let l=o[n],c=l.indexOf(Do),u;if(c===-1)u=l;else{let p=l.substring(0,c);r.push(e[p]),u=l.substring(c+Wc)}u!==""&&r.push(u)}return r}});var Gn=Kt(),me=Object.freeze({getForInstance:Gn.getForInstance,getByType:Gn.getByType,define(t,e){return e=e||{},e.type=t,Gn.register(e),t},assignAspect(t,e){if(!e){t.aspectType=Z.content;return}switch(t.sourceAspect=e,e[0]){case":":t.targetAspect=e.substring(1),t.aspectType=t.targetAspect==="classList"?Z.tokenList:Z.property;break;case"?":t.targetAspect=e.substring(1),t.aspectType=Z.booleanAttribute;break;case"@":t.targetAspect=e.substring(1),t.aspectType=Z.event;break;default:t.targetAspect=e,t.aspectType=Z.attribute;break}}});var Mt=class{constructor(e){this.options=e}createHTML(e){return kr.attribute(e(this))}createBehavior(){return this}};Se(Mt);var Xc=t=>t.nodeType===1,Rt=t=>t?e=>e.nodeType===1&&e.matches(t):Xc,Oo=class extends Mt{get id(){return this._id}set id(e){this._id=e,this._controllerProperty=`${e}-c`}bind(e){let o=e.targets[this.targetNodeId];o[this._controllerProperty]=e,this.updateTarget(e.source,this.computeNodes(o)),this.observe(o),e.onUnbind(this)}unbind(e){let o=e.targets[this.targetNodeId];this.updateTarget(e.source,ga),this.disconnect(o),o[this._controllerProperty]=null}getSource(e){return e[this._controllerProperty].source}updateTarget(e,o){e[this.options.property]=o}computeNodes(e){let o=this.getNodes(e);return"filter"in this.options&&(o=o.filter(this.options.filter)),o}};var qc=Symbol(),Va=new WeakMap;function Uc(t){let e=Object.freeze(Object.assign(Object.assign({},t),{[qc]:!0}));return Va.set(e,e),e}function Ra(t){return t.nodeType===Node.COMMENT_NODE}function _a(t){let e=t.getAttribute("data-fe");if(e===null)return null;let o=e.trim();if(!/^\d+$/.test(o))throw se.error(Q.invalidHydrationAttributeMarker,{value:e});let r=parseInt(o,10);if(r<1)throw se.error(Q.invalidHydrationAttributeMarker,{value:e});return r}var to=Uc({attributeMarkerName:"data-fe",contentBindingStartMarker(){return"fe:b"},contentBindingEndMarker(){return"fe:/b"},repeatStartMarker(){return"fe:r"},repeatEndMarker(){return"fe:/r"},elementBoundaryStartMarker(){return"fe:e"},elementBoundaryEndMarker(){return"fe:/e"},parseAttributeBindingCount:_a,resolveAttributeBindings(t,e,o){let r=_a(t);return r!==null?{factoryIndices:Array.from({length:r},(i,l)=>e+l),nextFactoryPointer:e+r,cleanup:()=>t.removeAttribute("data-fe")}:null},resolveContentBinding(t,e,o){return t==="fe:b"?{factoryIndices:[e],nextFactoryPointer:e+1}:null},isContentBindingStartMarker(t){return t==="fe:b"},isContentBindingEndMarker(t){return t==="fe:/b"},isRepeatViewStartMarker(t){return t==="fe:r"},isRepeatViewEndMarker(t){return t==="fe:/r"},isElementBoundaryStartMarker(t){return Ra(t)&&t.data==="fe:e"},isElementBoundaryEndMarker(t){return Ra(t)&&t.data==="fe:/e"}}),Yc=Va.get(to);function ja(){return Yc}var Ho=Symbol.for("fe-hydration");function Sr(t){return t[Ho]===Ho}var Wa="unknown",Ga="content following `<\!--fe:b-->` content binding marker",Xa="matching `<\!--fe:/b-->` content binding close marker",qa="matching `<\!--fe:/e-->` element boundary close marker";function Ua(t,e){let o=e?`: ${e}`:"";return`Hydration mismatch in <${t}>${o}. Install hydrationDebugger() from "@microsoft/fast-element/hydration.js" and pass it as enableHydration({ debugger: hydrationDebugger() }) for an "Expected / Received" report including the SSR HTML snippet.`}function Xn(t){return`no more attribute bindings (template defines ${t})`}function Ya(t){return`no more content bindings (template defines ${t})`}function Ka(t,e){let o=(t??Wa).toLowerCase();return Ua(o,e)}var Kc={formatBindingMismatch(t,e,o,r){return{message:Ka(r,void 0)}},formatStructuralError(t,e,o){return{message:Ka(e,o)}}},Jc=Kc;function Br(){return Jc}function $r(t){var e;return t?(e=t.getRootNode().host)===null||e===void 0?void 0:e.nodeName:void 0}var qn,Un,$p=(qn=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(customElements),"define"))===null||qn===void 0?void 0:qn.value,wp=(Un=Object.getOwnPropertyDescriptor(Array.prototype,Symbol.iterator))===null||Un===void 0?void 0:Un.value,Qc=new WeakMap;function Ja(t){return Qc.get(Object.getPrototypeOf(t))===!0}function wr(t){return t.nodeType===8}function Yn(t){return t.nodeType===3}function Za(t){return wr(t)||Yn(t)?t.data.length:t.childNodes.length}var es=133;function Kn(t,e){let o=document.createRange();return o.setStart(t,0),o.setEnd(e,Za(e)),o}function Qa(t,e,o=t){let r=Kn(t,e),n=r.startContainer===t?document.createTreeWalker(r.commonAncestorContainer,es):null,i=e.contains(o),l=!1;n!==null&&(n.currentNode=o);function c(u){if(n===null||!l&&u&&n.currentNode.contains(e))return null;let p=n.currentNode,d=u?n.nextSibling():n.nextNode();return l||!i||e.contains(d)?(d===e&&(i=!0),d):(n.currentNode=p,null)}return[c,()=>{if(n!==null&&!l&&(r.startContainer!==t||r.endContainer!==e||r.endOffset!==Za(e)||n.currentNode!==t&&n.currentNode!==e&&!r.intersectsNode(n.currentNode))){let u=n.currentNode;n=document.createTreeWalker(n.root,n.whatToShow,{acceptNode:p=>r.comparePoint(p,0)===0?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT}),n.currentNode=u,l=!0}}]}function ts(t,e){let o=t.parentNode;if(o===null||o!==e.parentNode||t!==e&&!(t.compareDocumentPosition(e)&Node.DOCUMENT_POSITION_FOLLOWING)){let[l,c]=Qa(t,e);return[l,c,()=>{}]}let r=t,n=null;function i(l=!1){if(n!==null)return n[0](l);if(l&&r===e)return null;let c=r;do if(l){if(c===e)return null;c=c.nextSibling}else{let u=c;for(c=c.firstChild;c===null;){if(u===e)return null;if(c=u.nextSibling,u=u.parentNode,u===o||u===null)break}}while(c!==null&&!(es&1<<c.nodeType-1));return c!==null&&(r=c),c}return[i,()=>n?.[1](),()=>{n??(n=Qa(t,e,r))}]}var Lo=class extends Error{constructor(e,o,r,n,i){super(e),this.factories=o,this.node=r,this.expected=n,this.received=i}},os=Element.prototype.removeAttribute,rs=Element.prototype.getAttribute,Zc=Element.prototype.hasAttribute;function is(t,e,o){let r=t;for(;r!==null;){let n=Object.getOwnPropertyDescriptor(r,e);if(n!==void 0)return n.value===o;r=Object.getPrototypeOf(r)}return!1}function ns(t,e){return e?Zc.call(t,"is")||!is(t,"removeAttribute",os):t.localName.includes("-")||t.hasAttribute("is")||"attributeChangedCallback"in t||t.removeAttribute!==os}function oo(t,e,o){let r=Br().formatStructuralError(t,$r(t),o);throw new Lo(r.message,e,t,r.expected,r.received)}function as(t,e,o){var r;let[n,i,l]=ts(t,e),c={},u={},p=ja(),d=p===to;p!==to&&l();let v=od(o),$=v,N=t;for(;N!==null;){switch(N.nodeType){case Node.ELEMENT_NODE:{let O=N,ye=d&&O.localName.includes("-"),ar=ye&&Ja(O);if((ye?!is(O,"getAttribute",rs):O.getAttribute!==rs)&&l(),d){let Ao=to.parseAttributeBindingCount(O);if(Ao!==null){Ao>4294967295&&to.resolveAttributeBindings(O,$,v);for(let Co=0;Co<Ao;Co++){let pa=o[$++];pa||oo(N,o,Xn(o.length)),ro(pa,N,c)}ns(O,ar)&&l(),O.removeAttribute("data-fe"),i()}break}let it=p.resolveAttributeBindings(O,$,v);if(it!==null){$=it.nextFactoryPointer;for(let Ao of it.factoryIndices){let Co=o[Ao];Co||oo(N,o,Xn(o.length)),ro(Co,N,c)}ns(O,!1)&&l(),(r=it.cleanup)===null||r===void 0||r.call(it),i()}break}case 8:{let O=N.data;if(d?O==="fe:e":p.isElementBoundaryStartMarker(N))N.data="",td(n,o,N,p,d);else{let ye;if(d){if(O!=="fe:b")break;ye=$++}else{let it=p.resolveContentBinding(O,$,v);if(it===null)break;$=it.nextFactoryPointer,ye=it.factoryIndices[0]}let ar=o[ye];ar||oo(N,o,Ya(o.length)),ed(N,n,ar,o,c,u,p,d)}break}}N=n()}return{targets:c,boundaries:u}}function ed(t,e,o,r,n,i,l,c){let u=e(!0);t.data="",u===null&&oo(t,r,Ga);let p=u,d=0;for(;u!==null;){if(wr(u)){if(c?u.data==="fe:b":l.isContentBindingStartMarker(u.data))d++;else if(c?u.data==="fe:/b":l.isContentBindingEndMarker(u.data)){if(d===0)break;d--}}u=e(!0)}u===null&&oo(t,r,Xa),u.data="",Yn(p)&&p.nextSibling===u?ro(o,p,n):(u!==p&&u.previousSibling!==null&&(i[o.targetNodeId]={first:p,last:u.previousSibling}),ro(o,u.parentNode.insertBefore(document.createTextNode(""),u),n))}function td(t,e,o,r,n){let i=0,l=t(!0);for(;l!==null;){if(wr(l)){if(n?l.data==="fe:e":r.isElementBoundaryStartMarker(l))l.data="",i++;else if((n?l.data==="fe:/e":r.isElementBoundaryEndMarker(l))&&(l.data="",i--===0))return}l=t(!0)}oo(o,e,qa)}function od(t){let e=0;for(;e<t.length&&t[e].targetNodeId==="h";)e++;return e}function ro(t,e,o){let r=t.targetNodeId;if(r===void 0)throw new Error("Factory could not be target to the node");o[r]=e}function no(t,e){let o=t.parentNode,r=t,n;for(;r!==e;){if(n=r.nextSibling,!n)throw new Error(`Unmatched first/last child inside "${e.getRootNode().host.nodeName}".`);o.removeChild(r),r=n}o.removeChild(e)}var Mo=class{constructor(){this.index=0,this.length=0}get event(){return at.getEvent()}get isEven(){return this.index%2===0}get isOdd(){return this.index%2!==0}get isFirst(){return this.index===0}get isInMiddle(){return!this.isFirst&&!this.isLast}get isLast(){return this.index===this.length-1}eventDetail(){return this.event.detail}eventTarget(){return this.event.target}},_t=class extends Mo{constructor(e,o,r){super(),this.fragment=e,this.factories=o,this.targets=r,this.behaviors=null,this.unbindables=[],this.source=null,this.isBound=!1,this.sourceLifetime=yt.unknown,this._skipAttrUpdates=!1,this.isPrerendered=Promise.resolve(!1),this.isHydrated=Promise.resolve(!1),this.context=this,this.firstChild=e.firstChild,this.lastChild=e.lastChild}appendTo(e){e.appendChild(this.fragment)}insertBefore(e){if(this.fragment.hasChildNodes())e.parentNode.insertBefore(this.fragment,e);else{let o=this.lastChild;if(e.previousSibling===o)return;let r=e.parentNode,n=this.firstChild,i;for(;n!==o;)i=n.nextSibling,r.insertBefore(n,e),n=i;r.insertBefore(o,e)}}remove(){let e=this.fragment,o=this.lastChild,r=this.firstChild,n;for(;r!==o;)n=r.nextSibling,e.appendChild(r),r=n;e.appendChild(o)}dispose(){no(this.firstChild,this.lastChild),this.unbind()}onUnbind(e){this.unbindables.push(e)}bind(e,o=this){if(this.source===e&&this.context===o)return;let r=this.behaviors;if(r===null){this.source=e,this.context=o,this.behaviors=r=new Array(this.factories.length);let n=this.factories;for(let i=0,l=n.length;i<l;++i){let c=n[i].createBehavior();c.bind(this),r[i]=c}}else{this.source!==null&&this.evaluateUnbindables(),this.isBound=!1,this.source=e,this.context=o;for(let n=0,i=r.length;n<i;++n)r[n].bind(this)}this.isBound=!0}unbind(){!this.isBound||this.source===null||(this.evaluateUnbindables(),this.source=null,this.context=this,this.isBound=!1)}evaluateUnbindables(){let e=this.unbindables;for(let o=0,r=e.length;o<r;++o)e[o].unbind(this);e.length=0}static disposeContiguousBatch(e){if(e.length!==0){no(e[0].firstChild,e[e.length-1].lastChild);for(let o=0,r=e.length;o<r;++o)e[o].unbind()}}};Se(_t);f.defineProperty(_t.prototype,"index");f.defineProperty(_t.prototype,"length");var ss,Vt={unhydrated:"unhydrated",hydrating:"hydrating",hydrated:"hydrated"},Jn=class extends Error{constructor(e,o,r,n,i,l){super(e),this.factory=o,this.fragment=r,this.templateString=n,this.expected=i,this.received=l}},Qn=class extends Mo{get hydrationStage(){return this._hydrationStage}get targets(){return this._targets}get bindingViewBoundaries(){return this._bindingViewBoundaries}constructor(e,o,r,n){super(),this.firstChild=e,this.lastChild=o,this.sourceTemplate=r,this.hostBindingTarget=n,this[ss]=Ho,this.context=this,this.source=null,this.isBound=!1,this.sourceLifetime=yt.unknown,this.unbindables=[],this.fragment=null,this.behaviors=null,this._hydrationStage=Vt.unhydrated,this._bindingViewBoundaries={},this._targets={},this.factories=r.compile().factories}insertBefore(e){if(this.fragment!==null)if(this.fragment.hasChildNodes())e.parentNode.insertBefore(this.fragment,e);else{let o=this.lastChild;if(e.previousSibling===o)return;let r=e.parentNode,n=this.firstChild,i;for(;n!==o;)i=n.nextSibling,r.insertBefore(n,e),n=i;r.insertBefore(o,e)}}appendTo(e){this.fragment!==null&&e.appendChild(this.fragment)}remove(){let e=this.fragment||(this.fragment=document.createDocumentFragment()),o=this.lastChild,r=this.firstChild,n;for(;r!==o;){if(n=r.nextSibling,!n)throw new Error(`Unmatched first/last child inside "${o.getRootNode().host.nodeName}".`);e.appendChild(r),r=n}e.appendChild(o)}bind(e,o=this){if(this.source===e&&this.context===o)return;this.hydrationStage!==Vt.hydrated&&(this._hydrationStage=Vt.hydrating);let r=this.behaviors;if(r===null){this.source=e,this.context=o;try{let{targets:i,boundaries:l}=as(this.firstChild,this.lastChild,this.factories);this._targets=i,this._bindingViewBoundaries=l}catch(i){if(i instanceof Lo){let l=this.sourceTemplate.html;typeof l!="string"&&(l=l.innerHTML),i.templateString=l}throw i}this.behaviors=r=new Array(this.factories.length);let n=this.factories;for(let i=0,l=n.length;i<l;++i){let c=n[i];if(c.targetNodeId==="h"&&this.hostBindingTarget&&ro(c,this.hostBindingTarget,this._targets),c.targetNodeId in this.targets){let u=c.createBehavior();u.bind(this),r[i]=u}else{let u=this.sourceTemplate.html;typeof u!="string"&&(u=u.innerHTML);let p=Kn(this.firstChild,this.lastChild).cloneContents(),d=Br().formatBindingMismatch(c,this.firstChild,this.lastChild,$r(this.firstChild));throw new Jn(d.message,c,p,u,d.expected,d.received)}}}else{this.source!==null&&this.evaluateUnbindables(),this.isBound=!1,this.source=e,this.context=o;for(let n=0,i=r.length;n<i;++n)r[n].bind(this)}this.isBound=!0,this._hydrationStage=Vt.hydrated}unbind(){!this.isBound||this.source===null||(this.evaluateUnbindables(),this.source=null,this.context=this,this.isBound=!1)}dispose(){no(this.firstChild,this.lastChild),this.unbind()}onUnbind(e){this.unbindables.push(e)}evaluateUnbindables(){let e=this.unbindables;for(let o=0,r=e.length;o<r;++o)e[o].unbind(this);e.length=0}};ss=Ho;Se(Qn);function rd(t){return t.create!==void 0}function nd(t,e,o,r){if(o==null&&(o=""),rd(o)){t.textContent="";let n=t.$fastView;if(n===void 0)if(Sr(r)&&Sr(o)&&r.bindingViewBoundaries[this.targetNodeId]!==void 0&&r.hydrationStage!==Vt.hydrated){let i=r.bindingViewBoundaries[this.targetNodeId];n=o.hydrate(i.first,i.last)}else n=o.create();else t.$fastTemplate!==o&&(n.isComposed&&(n.remove(),n.unbind()),n=o.create());n.isComposed?n.needsBindOnly&&(n.needsBindOnly=!1,n.bind(r.source,r.context)):(n.isComposed=!0,n.bind(r.source,r.context),n.insertBefore(t),t.$fastView=n,t.$fastTemplate=o)}else{let n=t.$fastView;if(n!==void 0&&n.isComposed&&(n.isComposed=!1,n.remove(),n.needsBindOnly?n.needsBindOnly=!1:n.unbind()),n===void 0&&Sr(r)&&r.hydrationStage!==Vt.hydrated){let i=r.bindingViewBoundaries[this.targetNodeId];i!==void 0&&(no(i.first,i.last),delete r.bindingViewBoundaries[this.targetNodeId])}t.textContent=o}}function id(t,e,o){var r;let n=`${this.id}-t`,i=(r=t[n])!==null&&r!==void 0?r:t[n]={v:0,cv:Object.create(null)},l=i.cv,c=i.v,u=t[e];if(o!=null&&o.length){let p=o.split(/\s+/);for(let d=0,v=p.length;d<v;++d){let $=p[d];$!==""&&(l[$]=c,u.add($))}}if(i.v=c+1,c!==0){c-=1;for(let p in l)l[p]===c&&u.remove(p)}}var ad={[Z.attribute]:st.setAttribute,[Z.booleanAttribute]:st.setBooleanAttribute,[Z.property]:(t,e,o)=>t[e]=o,[Z.content]:nd,[Z.tokenList]:id,[Z.event]:()=>{}},Ue=class{constructor(e){this.updateTarget=null,this.aspectType=Z.content,this.dataBinding=e}createHTML(e){return kr.interpolation(e(this))}createBehavior(){var e;if(this.updateTarget===null){let o=ad[this.aspectType],r=(e=this.dataBinding.policy)!==null&&e!==void 0?e:this.policy;if(!o)throw se.error(Q.unsupportedBindingBehavior);this.data=`${this.id}-d`,this.updateTarget=r.protect(this.targetTagName,this.aspectType,this.targetAspect,o)}return this}bind(e){var o;let r=e.targets[this.targetNodeId];switch(this.aspectType){case Z.event:r[this.data]=e,r.addEventListener(this.targetAspect,this,this.dataBinding.options);break;case Z.content:e.onUnbind(this);default:{let n=(o=r[this.data])!==null&&o!==void 0?o:r[this.data]=this.dataBinding.createObserver(this,this);n.target=r,n.controller=e;let i=n.bind(e);if(e._skipAttrUpdates&&(this.aspectType===Z.attribute||this.aspectType===Z.booleanAttribute))break;this.updateTarget(r,this.targetAspect,i,e);break}}}unbind(e){let r=e.targets[this.targetNodeId].$fastView;r!==void 0&&r.isComposed&&(r.unbind(),r.needsBindOnly=!0)}handleEvent(e){let o=e.currentTarget[this.data];if(o.isBound){at.setEvent(e);let r=this.dataBinding.evaluate(o.source,o.context);at.setEvent(null),r!==!0&&e.preventDefault()}}handleChange(e,o){let r=o.controller;if(!r.isBound)return;let n=o.target;this.updateTarget(n,this.targetAspect,o.bind(r),r)}};me.define(Ue,{aspected:!0});var us=(t,e)=>`${t}.${e}`,ls={},Ye={index:0,node:null};function cs(t){t.startsWith("fast-")||se.warn(Q.hostBindingWithoutHost,{name:t})}var sd=new Proxy(document.createElement("div"),{get(t,e){cs(e);let o=Reflect.get(t,e);return Ge(o)?o.bind(t):o},set(t,e,o){return cs(e),Reflect.set(t,e,o)}}),Zn=class{constructor(e,o,r){this.fragment=e,this.directives=o,this.policy=r,this.proto=null,this.nodeIds=new Set,this.descriptors={},this.factories=[]}addFactory(e,o,r,n,i){var l,c;this.nodeIds.has(r)||(this.nodeIds.add(r),this.addTargetDescriptor(o,r,n)),e.id=(l=e.id)!==null&&l!==void 0?l:zo(),e.targetNodeId=r,e.targetTagName=i,e.policy=(c=e.policy)!==null&&c!==void 0?c:this.policy,this.factories.push(e)}freeze(){return this.proto=Object.create(null,this.descriptors),this}addTargetDescriptor(e,o,r){let n=this.descriptors;if(o==="r"||o==="h"||n[o])return;if(!n[e]){let l=e.lastIndexOf("."),c=e.substring(0,l),u=parseInt(e.substring(l+1),10);this.addTargetDescriptor(c,e,u)}let i=ls[o];if(!i){let l=`_${o}`;ls[o]=i={get(){var c;return(c=this[l])!==null&&c!==void 0?c:this[l]=this[e].childNodes[r]}}}n[o]=i}createView(e){let o=this.fragment.cloneNode(!0),r=Object.create(this.proto);r.r=o,r.h=e??sd;for(let n of this.nodeIds)Reflect.get(r,n);return new _t(o,this.factories,r)}};function ps(t,e,o,r,n,i=!1){let l=o.attributes,c=t.directives;for(let u=0,p=l.length;u<p;++u){let d=l[u],v=d.value,$=Eo.parse(v,c),N=null;$===null?i&&(N=new Ue(cr(()=>v,t.policy)),me.assignAspect(N,d.name)):N=Pr.aggregate($,t.policy),N!==null&&(o.removeAttributeNode(d),u--,p--,t.addFactory(N,e,r,n,o.tagName))}}function ld(t,e,o,r,n){let i=Eo.parse(e.textContent,t.directives);if(i===null)return Ye.node=e.nextSibling,Ye.index=n+1,Ye;let l,c=l=e;for(let u=0,p=i.length;u<p;++u){let d=i[u];u!==0&&(n++,r=us(o,n),l=c.parentNode.insertBefore(document.createTextNode(""),c.nextSibling)),ke(d)?l.textContent=d:(l.textContent=" ",me.assignAspect(d),t.addFactory(d,o,r,n,null)),c=l}return Ye.index=n+1,Ye.node=c.nextSibling,Ye}function hs(t,e,o){let r=0,n=e.firstChild;for(;n;){let i=cd(t,o,n,r);n=i.node,r=i.index}}function cd(t,e,o,r){let n=us(e,r);switch(o.nodeType){case 1:ps(t,e,o,n,r),hs(t,o,n);break;case 3:return ld(t,o,e,n,r);case 8:{let i=Eo.parse(o.data,t.directives);i!==null&&t.addFactory(Pr.aggregate(i),e,n,r,null);break}}return Ye.index=r+1,Ye.node=o.nextSibling,Ye}function dd(t,e){return t&&t.nodeType===8&&Eo.parse(t.data,e)!==null}var ds="TEMPLATE",Pr={compile(t,e,o=st.policy){let r;if(ke(t)){r=document.createElement(ds),r.innerHTML=o.createHTML(t);let l=r.content.firstElementChild;l!==null&&l.tagName===ds&&(r=l)}else r=t;!r.content.firstChild&&!r.content.lastChild&&r.content.appendChild(document.createComment(""));let n=document.adoptNode(r.content),i=new Zn(n,e,o);return ps(i,"",r,"h",0,!0),(dd(n.firstChild,e)||n.childNodes.length===1&&Object.keys(e).length>0)&&n.insertBefore(document.createComment(""),n.firstChild),hs(i,n,"r"),Ye.node=null,i.freeze()},setDefaultStrategy(t){this.compile=t},aggregate(t,e=st.policy){if(t.length===1)return t[0];let o,r=!1,n,i=t.length,l=t.map(p=>ke(p)?()=>p:(o=p.sourceAspect||o,r=r||p.dataBinding.isVolatile,n=n||p.dataBinding.policy,p.dataBinding.evaluate)),c=(p,d)=>{let v="";for(let $=0;$<i;++$)v+=l[$](p,d);return v},u=new Ue(dr(c,n??e,r));return me.assignAspect(u,o),u}};var Ro=class extends Mt{bind(e){e.source[this.options]=e.targets[this.targetNodeId]}};me.define(Ro);var V=t=>new Ro(t);var ud=/([ \x09\x0a\x0c\x0d])([^\0-\x1F\x7F-\x9F "'>=/]+)([ \x09\x0a\x0c\x0d]*=[ \x09\x0a\x0c\x0d]*(?:[^ \x09\x0a\x0c\x0d"'`<>=]*|"[^"]*|'[^']*))$/,pd=Object.create(null),Me=class{constructor(e,o=pd){this.html=e,this.factories=o}createHTML(e){let o=this.factories;for(let r in o)e(o[r]);return this.html}};Me.empty=new Me("");me.define(Me);function hd(t,e,o,r=me.getForInstance(t)){if(r.aspected){let n=ud.exec(e);n!==null&&me.assignAspect(t,n[2])}return t.createHTML(o)}var _o=class t{constructor(e,o={},r){this.policy=r,this.result=null,this.html=e,this.factories=o}compile(){return this.result===null&&(this.result=Pr.compile(this.html,this.factories,this.policy)),this.result}inline(){return new Me(ke(this.html)?this.html:this.html.innerHTML,this.factories)}withPolicy(e){if(this.result)throw se.error(Q.cannotSetTemplatePolicyAfterCompilation);if(this.policy)throw se.error(Q.onlySetTemplatePolicyOnce);return this.policy=e,this}render(e,o,r){let n=this.create(r);return n.bind(e),n.appendTo(o),n}create(e){return this.compile().createView(e)}static create(e,o,r){let n="",i=Object.create(null),l=c=>{var u;let p=(u=c.id)!==null&&u!==void 0?u:c.id=zo();return i[p]=c,p};for(let c=0,u=e.length-1;c<u;++c){let p=e[c],d=o[c],v;if(n+=p,Ge(d))d=new Ue(dr(d));else if(d instanceof xt)d=new Ue(d);else if(!(v=me.getForInstance(d))){let $=d;d=new Ue(cr(()=>$))}n+=hd(d,p,l,v)}return new t(n+e[e.length-1],i,r)}};Se(_o);var m=((t,...e)=>{if(Array.isArray(t)&&Array.isArray(t.raw))return _o.create(t,e);throw se.error(Q.directCallToHTMLTagNotAllowed)});m.partial=t=>new Me(t);var gs="slotchange",Vo=class extends Oo{observe(e){e.addEventListener(gs,this)}disconnect(e){e.removeEventListener(gs,this)}getNodes(e){return e.assignedNodes(this.options)}handleEvent(e){let o=e.currentTarget;this.updateTarget(this.getSource(o),this.computeNodes(o))}};me.define(Vo);function ee(t){return ke(t)&&(t={property:t}),new Vo(t)}var lt=class extends k{constructor(){super(...arguments),this.elementInternals=this.attachInternals(),this.headinglevel=2,this.expanded=!1,this.disabled=!1}};a([s({attribute:"heading-level",mode:"fromView",converter:he})],lt.prototype,"headinglevel",void 0);a([s({mode:"boolean"})],lt.prototype,"expanded",void 0);a([s({mode:"boolean"})],lt.prototype,"disabled",void 0);a([y],lt.prototype,"expandbutton",void 0);function le(t){return t?typeof t=="string"?new Me(t):"inline"in t?t.inline():t:Me.empty}var De=class{};function St(t){return m` <slot name="end" ${V("end")}>${le(t.end)}</slot> `.inline()}function ze(t){return m` <slot name="start" ${V("start")}>${le(t.start)}</slot> `.inline()}function Ke(t,...e){let o=Zt.locate(t);e.forEach(r=>{Object.getOwnPropertyNames(r.prototype).forEach(i=>{i!=="constructor"&&Object.defineProperty(t.prototype,i,Object.getOwnPropertyDescriptor(r.prototype,i))}),Zt.locate(r).forEach(i=>o.push(i))})}var Je=class extends lt{constructor(){super(...arguments),this.block=!1}};a([s],Je.prototype,"size",void 0);a([s({attribute:"marker-position"})],Je.prototype,"markerPosition",void 0);a([s({mode:"boolean"})],Je.prototype,"block",void 0);Ke(Je,De);var h=Object.freeze({prefix:"fluent",shadowRootMode:"open",registry:globalThis.customElements});function ms(t){return e=>e?.nodeType!==Node.ELEMENT_NODE?!1:e.tagName.toLowerCase().endsWith(t)}function Nr(t,e="-accordion-item"){return ms(e)(t)}var fs=`${h.prefix}-accordion-item`;var gd=":host([hidden]){display:none}";function S(t){return`${gd}:host{display:${t}}`}var w="var(--colorNeutralForeground1)",Tr="var(--colorNeutralForeground1Hover)",bs="var(--colorNeutralForeground1Pressed)";var Re="var(--colorNeutralForeground2)",io="var(--colorNeutralForeground2Hover)",ao="var(--colorNeutralForeground2Pressed)",vs="var(--colorNeutralForeground2Selected)",jo="var(--colorNeutralForeground2BrandHover)",Wo="var(--colorNeutralForeground2BrandPressed)",xs="var(--colorNeutralForeground2BrandSelected)",j="var(--colorNeutralForeground3)",ys="var(--colorNeutralForeground3Hover)",ks="var(--colorNeutralForeground3Pressed)";var so="var(--colorNeutralForeground4)";var F="var(--colorNeutralForegroundDisabled)";var Ss="var(--colorCompoundBrandForeground1Hover)";var _e="var(--colorNeutralForegroundOnBrand)",Ee="var(--colorNeutralForegroundInverted)",Bs="var(--colorNeutralForegroundInvertedHover)",$s="var(--colorNeutralForegroundInvertedPressed)";var ws="var(--colorNeutralForegroundStaticInverted)";var Go="var(--colorBrandForeground1)",Ps="var(--colorBrandForeground2)";var Ns="var(--colorNeutralForeground1Static)";var I="var(--colorNeutralBackground1)",lo="var(--colorNeutralBackground1Hover)",co="var(--colorNeutralBackground1Pressed)",Ts="var(--colorNeutralBackground1Selected)";var ct="var(--colorNeutralBackground3)";var Fs="var(--colorNeutralBackground4)";var As="var(--colorNeutralBackground5)";var Fr="var(--colorNeutralBackground6)";var Ar="var(--colorNeutralBackgroundInverted)";var Cs="var(--colorSubtleBackground)",uo="var(--colorSubtleBackgroundHover)",jt="var(--colorSubtleBackgroundPressed)",Is="var(--colorSubtleBackgroundSelected)";var U="var(--colorTransparentBackground)",Xo="var(--colorTransparentBackgroundHover)",qo="var(--colorTransparentBackgroundPressed)",Ds="var(--colorTransparentBackgroundSelected)",Qe="var(--colorNeutralBackgroundDisabled)";var zs="var(--colorBackgroundOverlay)";var Cr="var(--colorBrandBackground)",Ir="var(--colorBrandBackgroundHover)",Dr="var(--colorBrandBackgroundPressed)",Es="var(--colorBrandBackgroundSelected)",dt="var(--colorCompoundBrandBackground)",Wt="var(--colorCompoundBrandBackgroundHover)",Gt="var(--colorCompoundBrandBackgroundPressed)";var Os="var(--colorBrandBackground2)";var fe="var(--colorNeutralStrokeAccessible)",Ve="var(--colorNeutralStrokeAccessibleHover)",je="var(--colorNeutralStrokeAccessiblePressed)";var be="var(--colorNeutralStroke1)",Ce="var(--colorNeutralStroke1Hover)",Ze="var(--colorNeutralStroke1Pressed)";var po="var(--colorNeutralStroke2)",Hs="var(--colorNeutralStroke3)";var Ls="var(--colorNeutralStrokeOnBrand2)";var zr="var(--colorBrandStroke1)",Er="var(--colorBrandStroke2)";var we="var(--colorCompoundBrandStroke)",Ms="var(--colorCompoundBrandStrokeHover)",Or="var(--colorCompoundBrandStrokePressed)",re="var(--colorNeutralStrokeDisabled)";var Y="var(--colorTransparentStroke)",Uo="var(--colorTransparentStrokeInteractive)";var ho="var(--colorStrokeFocus1)",ce="var(--colorStrokeFocus2)",Rs="var(--colorNeutralShadowAmbient)",_s="var(--colorNeutralShadowKey)";var Hr="var(--colorPaletteRedBackground1)";var Lr="var(--colorPaletteRedBackground3)";var Mr="var(--colorPaletteRedBorder1)",Yo="var(--colorPaletteRedBorder2)",go="var(--colorPaletteRedForeground1)";var ei="var(--colorPaletteRedForeground3)";var Rr="var(--colorPaletteGreenBackground1)";var _r="var(--colorPaletteGreenBackground3)";var Vs="var(--colorPaletteGreenBorder1)",js="var(--colorPaletteGreenBorder2)",Ws="var(--colorPaletteGreenForeground1)",Gs="var(--colorPaletteGreenForeground2)",Xs="var(--colorPaletteGreenForeground3)";var Vr="var(--colorPaletteDarkOrangeBackground1)";var jr="var(--colorPaletteDarkOrangeBackground3)";var Wr="var(--colorPaletteDarkOrangeBorder1)";var qs="var(--colorPaletteDarkOrangeForeground1)";var ti="var(--colorPaletteDarkOrangeForeground3)",Us="var(--colorPaletteYellowBackground1)";var Ys="var(--colorPaletteYellowBackground3)";var Ks="var(--colorPaletteYellowBorder1)";var Gr="var(--colorPaletteYellowForeground2)";var Bt="var(--borderRadiusNone)",Pe="var(--borderRadiusSmall)",P="var(--borderRadiusMedium)",Js="var(--borderRadiusLarge)",Qs="var(--borderRadiusXLarge)";var Ne="var(--borderRadiusCircular)",x="var(--fontFamilyBase)";var Ko="var(--fontSizeBase100)",z="var(--fontSizeBase200)",R="var(--fontSizeBase300)",te="var(--fontSizeBase400)",$t="var(--fontSizeBase500)",Xr="var(--fontSizeBase600)",Zs="var(--fontSizeHero700)",el="var(--fontSizeHero800)",tl="var(--fontSizeHero900)",ol="var(--fontSizeHero1000)",M="var(--fontWeightRegular)";var _="var(--fontWeightSemibold)",qr="var(--fontWeightBold)",Jo="var(--lineHeightBase100)",E="var(--lineHeightBase200)",H="var(--lineHeightBase300)",K="var(--lineHeightBase400)",mo="var(--lineHeightBase500)",rl="var(--lineHeightBase600)",nl="var(--lineHeightHero700)",il="var(--lineHeightHero800)",al="var(--lineHeightHero900)",sl="var(--lineHeightHero1000)",fo="var(--shadow2)",Ur="var(--shadow4)";var ll="var(--shadow64)";var T="var(--strokeWidthThin)",de="var(--strokeWidthThick)",Oe="var(--strokeWidthThicker)",cl="var(--strokeWidthThickest)";var oe="var(--spacingHorizontalXXS)",ne="var(--spacingHorizontalXS)",ue="var(--spacingHorizontalSNudge)",Te="var(--spacingHorizontalS)",ie="var(--spacingHorizontalMNudge)",W="var(--spacingHorizontalM)",dl="var(--spacingHorizontalL)";var ul="var(--spacingHorizontalXXL)";var Qo="var(--spacingVerticalXXS)",et="var(--spacingVerticalXS)",wt="var(--spacingVerticalSNudge)",ae="var(--spacingVerticalS)",bo="var(--spacingVerticalMNudge)",pl="var(--spacingVerticalM)",Yr="var(--spacingVerticalL)";var vo="var(--spacingVerticalXXL)";var xo="var(--durationUltraFast)",hl="var(--durationFaster)";var Pt="var(--durationNormal)",gl="var(--durationGentle)",ml="var(--durationSlow)";var Nt="var(--curveAccelerateMid)";var fl="var(--curveDecelerateMax)",Tt="var(--curveDecelerateMid)";var yo="var(--curveEasyEase)",bl="var(--curveLinear)";var oi=g`
   ${S("block")}
@@ -6534,7 +7573,7 @@ let TOKEN = new URLSearchParams(location.search).get('token') || (location.hash 
    令牌只活在内存里，不落 localStorage / cookie / 历史。 */
 function requestHostToken(timeoutMs) {
   return new Promise((resolve) => {
-    const host = window.chrome && window.chrome.webview;
+    const host = hostBridge();
     if (!host) return resolve(null);
     let done = false;
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
@@ -6547,6 +7586,16 @@ function requestHostToken(timeoutMs) {
     catch (err) { clearTimeout(timer); finish(null); }
   });
 }
+/* 宿主桥：两套壳共用同一套协议。
+   · WebView2（旧壳 / 浏览器回退）：window.chrome.webview
+   · Electron 壳：window.dshHost（contextBridge 暴露，形状一致）
+   浏览器里两者都没有，页面就当没有宿主。 */
+function hostBridge() {
+  if (window.chrome && window.chrome.webview) return window.chrome.webview;
+  if (window.dshHost) return window.dshHost;
+  return null;
+}
+
 const el = (id) => document.getElementById(id);
 let STATE = null;
 let CURRENT_JOB = null;
@@ -6560,13 +7609,18 @@ let POLL = null;
 
 /* ---------------------------------------------------------------- 基础请求 */
 async function api(path, body, method) {
+  const empty = body === undefined || (method === 'DELETE' && !Object.keys(body || {}).length);
   const r = await fetch(path, {
     method: method || (body === undefined ? 'GET' : 'POST'),
     headers: { 'Content-Type': 'application/json', 'x-config-token': TOKEN },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: empty ? undefined : JSON.stringify(body),
   });
   const j = await r.json().catch(() => ({ error: '返回不是 JSON' }));
-  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  if (!r.ok) {
+    // 优先用服务端给的 error；没有就把子进程输出尾巴亮出来，别让用户只看到一个 "500"
+    const tail = String(j.text || '').split('\n').map((x) => x.trim()).filter(Boolean).slice(-3).join(' / ');
+    throw new Error(j.error || tail || ('HTTP ' + r.status));
+  }
   return j;
 }
 function flash(id, text, kind) {
@@ -6645,10 +7699,15 @@ function render(s) {
     ['端口', String(d.port || s.webPort) + (d.startedAt ? '　启动于 ' + esc(d.startedAt) : '')],
   ]);
   // 主操作按运行状态互斥：运行中不该还能点「启动 dsh」，停止后也不该还能点「停止」
-  el('btn-dsh-start').disabled = !!d.running;
+  // 没装 dsh 时启动必然失败（子进程会立刻退出），所以直接禁用并指路，别等人点了才报错
+  const notInstalled = ((s.slot && s.slot.activeVersion) || '') === 'not-installed';
+  el('btn-dsh-start').disabled = !!d.running || notInstalled;
   el('btn-dsh-stop').disabled = !d.running;
   el('btn-dsh-open').disabled = !d.url;
-  el('ov-lock-note').textContent = s.loggedIn ? '' : '启动 dsh 需要先解锁（口令用于把密钥注入 dsh 进程）';
+  el('btn-dsh-start').title = notInstalled ? '活动槽里还没有 dsh：先到「升级」里安装' : '';
+  el('ov-lock-note').textContent = notInstalled && !d.running
+    ? '这台盘上还没装 dsh：先到「升级」里安装，再回来启动。'
+    : (s.loggedIn ? '' : '启动 dsh 需要先解锁（口令用于把密钥注入 dsh 进程）');
 
   rows('ov-slots', [
     ['活动槽', s.slot.active + ' · dsh ' + esc(s.slot.activeVersion)],
@@ -7347,34 +8406,109 @@ window.addEventListener('resize', () => {
 /* ---------------------------------------------------------------- 外观选项
    背景（流体渐变/纯色）、主色、动效强度；都存在服务端的 data/ui-prefs.json，
    和主题一样跟盘走。换主色只覆盖 CSS 令牌，不改任何组件样式。 */
-const APPEARANCE = { bg: 'fluid', accent: 'green', motion: 'full' };
 const ACCENTS = ["green", "blue", "purple", "orange", "cyan"];
 const MOTIONS = ["full", "calm", "off"];
+const BGS = ["fluid", "solid", "image"];
+
+/** 当前外观（含自定义背景）；统一从这里读，避免各处各写一份导致 wallpaper 被覆盖掉 */
+let AP = { bg: 'fluid', accent: 'green', motion: 'full' };
+
 function currentAppearance() {
-  const h = document.documentElement;
-  return { bg: h.dataset.bg || 'fluid', accent: h.dataset.accent || 'green', motion: h.dataset.motion || 'full' };
+  return { bg: AP.bg, accent: AP.accent, motion: AP.motion, wallpaper: AP.wallpaper };
 }
+
+/** 背景图版本号：换图后要让 url 变，否则浏览器拿缓存那张 */
+function wallUrl(w) {
+  return 'url("/api/wallpaper?v=' + encodeURIComponent((w && (w.at || w.bytes)) || Date.now()) + '")';
+}
+
 function applyAppearance(a, persist) {
   const h = document.documentElement;
-  const bg = a && a.bg === 'solid' ? 'solid' : 'fluid';
-  const accent = ACCENTS.indexOf(a && a.accent) >= 0 ? a.accent : "green";
-  const motion = MOTIONS.indexOf(a && a.motion) >= 0 ? a.motion : "full";
-  h.dataset.bg = bg;
-  h.dataset.accent = accent;
-  h.dataset.motion = motion;
-  if (el('ap-bg')) el('ap-bg').value = bg;
-  if (el('ap-accent')) el('ap-accent').value = accent;
-  if (el('ap-motion')) el('ap-motion').value = motion;
+  if (a) {
+    AP = {
+      bg: BGS.indexOf(a.bg) >= 0 ? a.bg : 'fluid',
+      accent: ACCENTS.indexOf(a.accent) >= 0 ? a.accent : 'green',
+      motion: MOTIONS.indexOf(a.motion) >= 0 ? a.motion : 'full',
+      wallpaper: a.wallpaper || null,
+    };
+  }
+  // 选了图片但盘上其实没有图 → 退回流体渐变，别给一片纯黑
+  if (AP.bg === 'image' && !AP.wallpaper) AP.bg = 'fluid';
+
+  const w = AP.wallpaper || {};
+  const blur = Math.max(0, Math.min(24, Number(w.blur) || 0));
+  const dim = Math.max(0, Math.min(80, Number(w.dim) === 0 ? 0 : (Number(w.dim) || 35)));
+  const dark = h.dataset.theme !== 'light';
+
+  h.dataset.bg = AP.bg;
+  h.dataset.accent = AP.accent;
+  h.dataset.motion = AP.motion;
+  h.style.setProperty('--wall-blur', blur + 'px');
+  h.style.setProperty('--wall-dim-color', dark
+    ? 'rgb(0 0 0 / ' + (dim / 100) + ')'
+    : 'rgb(255 255 255 / ' + (dim / 100) + ')');
+  if (AP.wallpaper) h.style.setProperty('--wallpaper-image', wallUrl(w));
+  else h.style.removeProperty('--wallpaper-image');
+
+  if (el('ap-bg')) el('ap-bg').value = AP.bg;
+  if (el('ap-accent')) el('ap-accent').value = AP.accent;
+  if (el('ap-motion')) el('ap-motion').value = AP.motion;
   if (el('ap-theme')) el('ap-theme').value = h.dataset.theme === 'light' ? 'light' : 'dark';
+  if (el('ap-wall')) el('ap-wall').hidden = AP.bg !== 'image';
+  if (el('ap-wall-clear')) el('ap-wall-clear').hidden = !AP.wallpaper;
+  if (el('ap-wall-dim')) el('ap-wall-dim').value = String(dim);
+  if (el('ap-wall-blur')) el('ap-wall-blur').value = String(blur);
+  if (el('ap-wall-size')) {
+    el('ap-wall-size').textContent = AP.wallpaper
+      ? (AP.wallpaper.bytes ? (Math.round(AP.wallpaper.bytes / 1024) + ' KB · ') : '') + (AP.wallpaper.mime || '')
+      : '';
+  }
   document.querySelectorAll('#launcher-swatches button').forEach((b) => {
-    b.setAttribute('aria-pressed', b.dataset.accent === accent ? 'true' : 'false');
+    b.setAttribute('aria-pressed', b.dataset.accent === AP.accent ? 'true' : 'false');
   });
-  if (persist) api("/api/prefs", { appearance: { bg: bg, accent: accent, motion: motion } }).catch(() => {});
+
+  if (persist) {
+    api("/api/prefs", { appearance: currentAppearance() }).catch(() => {});
+    // 通知桌面壳：dsh 界面那张背景也要跟着换
+    try {
+      const host = hostBridge();
+      if (host) host.postMessage(JSON.stringify({ type: 'dsh.wallpaper' }));
+    } catch (e) { /* 浏览器回退没有宿主 */ }
+  }
 }
+
+/** 把用户选的图片压到最长边 2560 再传，避免 6MB 上限被一张手机原图打爆 */
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 2560;
+      const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      let out = c.toDataURL('image/webp', 0.9);
+      if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/jpeg', 0.9);
+      resolve({ dataUrl: out, w: w, h: h });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('这张图读不出来')); };
+    img.src = url;
+  });
+}
+
 if (el('ap-theme')) {
   el('ap-theme').addEventListener('change', () => { applyTheme(el('ap-theme').value, true); applyAppearance(null, false); });
   const saveAp = () => {
-    applyAppearance({ bg: el("ap-bg").value, accent: el("ap-accent").value, motion: el("ap-motion").value }, true);
+    applyAppearance({
+      bg: el("ap-bg").value,
+      accent: el("ap-accent").value,
+      motion: el("ap-motion").value,
+      wallpaper: AP.wallpaper,
+    }, true);
     if (el('ap-out')) flash('ap-out', '已应用', 'ok');
   };
   el('ap-bg').addEventListener('change', saveAp);
@@ -7385,6 +8519,55 @@ if (el('ap-theme')) {
     });
   });
   el('ap-motion').addEventListener('change', saveAp);
+
+  // 选背景图
+  if (el('ap-wall-pick')) {
+    el('ap-wall-pick').addEventListener('click', () => el('ap-wall-file').click());
+    el('ap-wall-file').addEventListener('change', async () => {
+      const f = el('ap-wall-file').files && el('ap-wall-file').files[0];
+      if (!f) return;
+      try {
+        if (el('ap-wall-pick')) { el('ap-wall-pick').disabled = true; el('ap-wall-pick').textContent = '处理中…'; }
+        const shrunk = await shrinkImage(f);
+        const r = await api('/api/wallpaper', {
+          dataUrl: shrunk.dataUrl,
+          opts: { dim: Number(el('ap-wall-dim') ? el('ap-wall-dim').value : 35), blur: Number(el('ap-wall-blur') ? el('ap-wall-blur').value : 0) },
+        });
+        AP.wallpaper = (r && r.appearance && r.appearance.wallpaper) || { bytes: Math.round(shrunk.dataUrl.length * 0.75), mime: 'image/webp' };
+        applyAppearance({ bg: 'image', accent: AP.accent, motion: AP.motion, wallpaper: AP.wallpaper }, true);
+        if (el('ap-out')) flash('ap-out', '背景已更新（配置页 + dsh 界面）', 'ok');
+      } catch (e) {
+        if (el('ap-out')) flash('ap-out', '设背景失败：' + (e.message || e), 'bad');
+      } finally {
+        if (el('ap-wall-pick')) { el('ap-wall-pick').disabled = false; el('ap-wall-pick').textContent = '选择图片…'; }
+        if (el('ap-wall-file')) el('ap-wall-file').value = '';
+      }
+    });
+  }
+  if (el('ap-wall-clear')) {
+    el('ap-wall-clear').addEventListener('click', async () => {
+      try {
+        await api('/api/wallpaper', {}, 'DELETE');
+        AP.wallpaper = null;
+        applyAppearance({ bg: 'fluid', accent: AP.accent, motion: AP.motion, wallpaper: null }, true);
+        if (el('ap-out')) flash('ap-out', '背景已移除', 'ok');
+      } catch (e) {
+        if (el('ap-out')) flash('ap-out', '移除失败：' + (e.message || e), 'bad');
+      }
+    });
+  }
+  // 遮罩 / 模糊：拖动即生效，松手存盘
+  ['ap-wall-dim', 'ap-wall-blur'].forEach((id) => {
+    if (!el(id)) return;
+    el(id).addEventListener('input', () => {
+      AP.wallpaper = Object.assign({}, AP.wallpaper || {}, {
+        dim: Number(el('ap-wall-dim').value),
+        blur: Number(el('ap-wall-blur').value),
+      });
+      applyAppearance(null, false);
+    });
+    el(id).addEventListener('change', () => applyAppearance(Object.assign({}, currentAppearance()), true));
+  });
 }
 
 /* ---------------------------------------------------------------- 自绘标题栏
@@ -7395,7 +8578,7 @@ if (el('ap-theme')) {
      2) 告诉宿主「从哪一列开始属于交互区」——右边是按钮，左边才是可拖动的空白。 */
 function initTitlebar() {
   const bar = el('titlebar');
-  const host = window.chrome && window.chrome.webview;
+  const host = hostBridge();
   if (!bar || !host) return;
   el('tb-ctl').hidden = false;
   const post = (msg) => { try { host.postMessage(msg); } catch (e) { /* 宿主不在 */ } };
@@ -7440,6 +8623,7 @@ function initTitlebar() {
   if (window.ResizeObserver) new ResizeObserver(syncHit).observe(bar);
 }
 initTitlebar();
+installResponsive();   // 宽度分档（死区，避免拖动时元素闪断）
 
 /* ---------------------------------------------------------------- 主题
    深/浅两套皮肤只靠 CSS 变量切换（html[data-theme]），组件样式不用动。
@@ -7448,21 +8632,50 @@ initTitlebar();
 function applyTheme(theme, persist) {
   const t = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = t;
+  // 官方 Web UI 的设计 token 用 body[data-ds-dark-theme] 切换深色（深色时存在该属性），
+  // 这里跟 html[data-theme] 一起维护，页面里那套变量才会真正跟着变。
+  if (document.body) {
+    if (t === 'dark') document.body.setAttribute('data-ds-dark-theme', '');
+    else document.body.removeAttribute('data-ds-dark-theme');
+  }
   const label = el('btn-theme-label');
   if (label) label.textContent = t === 'light' ? '深色' : '浅色';
   const b = el('btn-theme');
   if (b) b.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
   try {
-    if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage({ type: 'dsh.theme', theme: t });
+    const hb = hostBridge();
+    if (hb) hb.postMessage({ type: 'dsh.theme', theme: t });
   } catch (e) { /* 浏览器回退路径没有宿主 */ }
   if (persist) api('/api/prefs', { theme: t }).catch(() => {});
 }
+/** 宽度分档（带死区）：替代 @media 在断点附近反复闪断 */
+function installResponsive() {
+  const RULES = [['w-md', 1180], ['w-sm', 1040]];
+  const on = {};
+  let t = null;
+  const apply = () => {
+    const w = window.innerWidth;
+    for (const [name, th] of RULES) {
+      const cur = !!on[name];
+      const next = cur ? w < th + 24 : w < th - 10;   // 死区 34px
+      if (next !== cur) {
+        on[name] = next;
+        document.documentElement.classList.toggle(name, next);
+      }
+    }
+  };
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(apply, 40); });
+  apply();
+}
+
 async function loadTheme() {
   let saved = 'dark';
   let appearance = null;
   try {
     const p = await api('/api/prefs');
     if (p && (p.theme === 'light' || p.theme === 'dark')) saved = p.theme;
+    // 自适应：页面自己按系统的 prefers-color-scheme 解析（桌面壳里壳会再推一次实际值）
+    else if (p && p.theme === 'auto') saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
     if (p && p.appearance) appearance = p.appearance;
   } catch (e) { /* 老服务没有这个接口 */ }
   applyTheme(saved, false);

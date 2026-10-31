@@ -56,7 +56,14 @@ function inlineSafe(text, kind) {
 
 function build() {
   const head = read(path.join(SRC, 'head.html'));
+  const THEME = path.join(ROOT, 'third_party', 'dsh-theme');
   const css = [
+    '/* ===== 官方 Web UI 设计 token（third_party/dsh-theme，MIT / DeepSeek）===== */',
+    read(path.join(THEME, 'design-platform.css'), ''),
+    read(path.join(THEME, 'base.css'), ''),
+    read(path.join(THEME, 'corner-shape.css'), ''),
+    read(path.join(THEME, 'scrollbar.css'), ''),
+    read(path.join(THEME, 'focus.css'), ''),
     '/* ===== 原有视觉层（src/legacy.css）===== */',
     read(path.join(SRC, 'legacy.css')),
     '/* ===== Fluent 2 主题（third_party/fluent/fluent-theme.css）===== */',
@@ -75,6 +82,11 @@ function build() {
     ...SECTIONS.map((s) => read(path.join(SRC, 'partials', s + '.html')).trimEnd()),
     '</main>', '',
     read(path.join(SRC, 'partials', 'login.html')).trimEnd(), ''];
+
+  // 对齐层放文档最后：各 partial 里自带 <style>（还有 #id 选择器），
+  // 放在 <head> 会被它们盖掉，必须在它们之后才能成为"最后一句话"
+  html.push('<style>\n/* ===== 对齐层（src/dsh-align.css）：把老类名挂到官方 token 上 ===== */\n'
+    + inlineSafe(read(path.join(SRC, 'dsh-align.css')), 'css') + '\n</style>', '');
 
   // Fluent 组件库：有就内联（浏览器端 IIFE），没有就跳过（页面仍能跑，只是控件是原生的）
   const fluentJs = read(path.join(FLUENT_DIR, 'fluent.min.js'), '');

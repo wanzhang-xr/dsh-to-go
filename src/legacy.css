@@ -20,7 +20,7 @@
 @keyframes pulse{0%{box-shadow:0 0 0 0 currentColor;opacity:1}70%{box-shadow:0 0 0 9px transparent;opacity:.85}100%{box-shadow:0 0 0 0 transparent;opacity:1}}
 @keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:14px/1.6 var(--font-ui)}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:14.5px/1.6 var(--font-ui)}
 a{color:var(--accent)}
 code,pre,.mono{font-family:var(--font-mono)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}

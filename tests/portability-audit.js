@@ -101,6 +101,8 @@ const LICENSE_REQUIRED = [
   ['LICENSE', '本仓库 MIT 许可'],
   ['THIRD-PARTY-NOTICES.md', '第三方组件清单'],
   ['third_party/fluent/LICENSE', 'Fluent UI / FAST（MIT）'],
+  ['third_party/dsh-theme/LICENSE', '官方 Web UI 设计 token（MIT，DeepSeek）'],
+  ['third_party/dsh-theme/SOURCE.json', '官方 token 的出处与提交号'],
   ['third_party/webview2/LICENSE.txt', 'WebView2 SDK（BSD-3 风格）'],
   ['third_party/webview2/NOTICE.txt', 'WebView2 SDK 第三方声明'],
   ...(fs.existsSync(path.join(ROOT, 'runtime', 'node'))

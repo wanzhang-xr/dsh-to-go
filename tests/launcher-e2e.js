@@ -2,15 +2,19 @@
 /**
  * launcher-e2e.js —— 启动器真机验收（起真进程，不是"编译成功"）
  *
- *   runtime\node\node.exe tests\launcher-e2e.js
+ *   runtime\\node\\node.exe tests\\launcher-e2e.js
+ *
+ * 现在这套壳是 Electron（tools\\electron\\main.js）：
+ *   根目录 dsh-to-go.exe 只是个小 shim，负责拉起 Electron；起不来就回退 dsh-ui.cmd。
  *
  * 断言：
- *   1. 双击（spawn）exe 后，窗口出现且标题是固定的 dsh-to-go（不含令牌）
- *   2. 本地服务起来了，页面加载完成（读的是启动器自己写的日志）
- *   3. 日志里没有令牌明文（只允许出现长度）
- *   4. 强杀启动器后，它起的 ui-server 会自己退出（不留孤儿服务）
+ *   1. 双击（spawn）exe 后，出现标题为 DSH to go 的窗口（标题固定，不含令牌）
+ *   2. shim 自己不驻留（拉完 Electron 就退出，不多占一个进程）
+ *   3. 本地服务起来了、配置页加载完成（读壳自己写的日志）
+ *   4. 日志里没有令牌明文（只允许出现长度）
+ *   5. 强杀壳之后，它起的 ui-server 会自己退出（不留孤儿服务）
  *
- * 需要：Windows、已构建的 dsh-to-go.exe、runtime\node。会短暂弹出窗口（正常）。
+ * 需要：Windows、已构建的 dsh-to-go.exe、runtime\\node、runtime\\electron。会短暂弹出窗口（正常）。
  */
 const fs = require('fs');
 const path = require('path');
@@ -18,8 +22,8 @@ const { spawn, spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const EXE = path.join(ROOT, 'dsh-to-go.exe');
-const LOG = path.join(ROOT, 'data', 'logs', 'launcher.log');
-const NODE = process.platform === 'win32' ? 'node' : 'node';
+const LOG = path.join(ROOT, 'data', 'logs', 'electron.log');
+const TITLE = 'DSH to go';
 
 const results = [];
 const ok = (name, detail) => { results.push({ name, pass: true, detail: detail || '' }); console.log('  PASS  ' + name + (detail ? '  — ' + detail : '')); };
@@ -30,92 +34,97 @@ function ps(cmd) {
   const r = spawnSync('powershell', ['-NoProfile', '-Command', cmd], { encoding: 'utf8', timeout: 20000 });
   return String(r.stdout || '').trim();
 }
-function launcherPids() {
-  const out = ps("Get-Process dsh-to-go -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }");
+function named(processName) {
+  const out = ps('Get-Process ' + processName + ' -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }');
   return out.split(/\r?\n/).map((s) => parseInt(s, 10)).filter((n) => n > 0);
+}
+function electronPids() { return named('electron'); }
+function shimPids() { return named('dsh-to-go'); }
+function windowPid() {
+  const out = ps("Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq '" + TITLE + "' } | ForEach-Object { $_.Id }");
+  const n = parseInt(out.split(/\r?\n/)[0], 10);
+  return Number.isFinite(n) ? n : 0;
 }
 function uiServerPids() {
   const out = ps("Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*ui-server.js*' } | ForEach-Object { $_.ProcessId }");
   return out.split(/\r?\n/).map((s) => parseInt(s, 10)).filter((n) => n > 0);
 }
+function readLog() {
+  try { return fs.readFileSync(LOG, 'utf8'); } catch (e) { return ''; }
+}
 
 (async function main() {
   if (!fs.existsSync(EXE)) {
-    console.error('缺少 dsh-to-go.exe：先跑 tools\\launcher\\build-launcher.cmd');
+    console.error('缺少 dsh-to-go.exe：先跑 runtime\\node\\node.exe tools\\launcher\\build-launcher.cmd');
     process.exit(2);
   }
-  if (launcherPids().length) {
-    console.error('已经有一个启动器在跑，先关掉它再跑这个 e2e（否则单实例逻辑会直接激活旧窗口）。');
+  const electronExe = path.join(ROOT, 'runtime', 'electron', 'node_modules', 'electron', 'dist', 'electron.exe');
+  if (!fs.existsSync(electronExe)) {
+    console.error('缺少 runtime\\electron（桌面壳）。先跑 build.cmd 下载，或改用 dsh-ui.cmd 回退路径。');
+    process.exit(2);
+  }
+  if (electronPids().length) {
+    console.error('已经有 Electron 实例在跑，先关掉 DSH to go 窗口再跑这个 e2e（单实例逻辑会直接聚焦旧窗口）。');
     process.exit(2);
   }
 
   const before = new Set(uiServerPids());
-  try { fs.unlinkSync(LOG); } catch (e) { /* 没有就更好 */ }
+  try { fs.unlinkSync(LOG); } catch (e) { /* 没有更好 */ }
 
-  const child = spawn(EXE, [], {
-    cwd: ROOT,
-    env: Object.assign({}, process.env, { DSH_LAUNCHER_SELFTEST: '1' }),
-    detached: false,
-    windowsHide: false,
-  });
-  let exited = false;
-  child.on('exit', () => { exited = true; });
+  const child = spawn(EXE, [], { cwd: ROOT, detached: false, windowsHide: false });
+  let shimExited = false;
+  child.on('exit', () => { shimExited = true; });
 
-  // ---- 1. 窗口 + 标题
-  let pids = [];
-  for (let i = 0; i < 40 && !pids.length; i++) { await sleep(250); pids = launcherPids(); }
-  if (!pids.length) { bad('窗口出现', '没有找到 dsh-to-go 进程'); throw new Error('launcher did not start'); }
-  ok('窗口出现', 'pid ' + pids.join(','));
+  // ---- 1. 窗口出现 + 标题固定
+  let pid = 0;
+  for (let i = 0; i < 80 && !pid; i++) { await sleep(250); pid = windowPid(); }
+  if (!pid) {
+    bad('窗口出现', '20 秒内没有出现标题为 "' + TITLE + '" 的窗口');
+    throw new Error('electron window did not appear');
+  }
+  ok('窗口出现', 'pid ' + pid + '，标题 "' + TITLE + '"');
 
-  await sleep(1500);
-  const title = ps("(Get-Process -Id " + pids[0] + " -ErrorAction SilentlyContinue).MainWindowTitle");
-  if (title === 'dsh-to-go') ok('窗口标题是固定值', JSON.stringify(title));
-  else bad('窗口标题是固定值', '实际 ' + JSON.stringify(title));
+  // ---- 2. shim 不驻留
+  for (let i = 0; i < 20 && !shimExited; i++) await sleep(200);
+  const shimLeft = shimPids();
+  if (shimExited && !shimLeft.length) ok('shim 拉完就退出（不驻留）');
+  else bad('shim 拉完就退出（不驻留）', '仍在跑：' + shimLeft.join(',') );
 
-  // ---- 2. 服务就绪 + 页面加载（读启动器自己的日志）
+  // ---- 3. 服务就绪 + 配置页加载
   let logText = '';
   for (let i = 0; i < 120; i++) {
-    try { logText = fs.readFileSync(LOG, 'utf8'); } catch (e) { logText = ''; }
-    if (/page loaded/.test(logText)) break;
+    logText = readLog();
+    if (/config page loaded/.test(logText)) break;
     await sleep(250);
   }
-  if (/ui-server ready/.test(logText)) ok('本地服务就绪', (logText.match(/starting ui-server on 127\.0\.0\.1:(\d+)/) || [])[0] || '');
-  else bad('本地服务就绪', logText.split('\n').slice(-4).join(' | '));
-  if (/page loaded/.test(logText)) ok('页面加载完成');
-  else bad('页面加载完成', logText.split('\n').slice(-4).join(' | '));
-  // 这行是页面加载完成后约 1 秒才写的（页面 selftest 完成才 post），固定读一次会误判，
-  // 所以轮询等它出现（最多 10 秒）。
-  let bridgeSeen = false;
-  for (let i = 0; i < 50; i++) {
-    if (/selftest bridge: "dsh\.token token-length=\d+"/.test(logText)) { bridgeSeen = true; break; }
-    await sleep(200);
-    try { logText = fs.readFileSync(LOG, 'utf8'); } catch (e) { /* 日志还没刷新 */ }
-  }
-  if (bridgeSeen) ok('令牌桥把令牌交给页面', '日志只有长度');
-  else bad('令牌桥把令牌交给页面', '等了 10 秒仍没有 selftest bridge 行');
+  if (/starting ui-server on 127\.0\.0\.1:(\d+)/.test(logText)) {
+    ok('本地服务就绪', (logText.match(/starting ui-server on 127\.0\.0\.1:\d+/) || [])[0]);
+  } else bad('本地服务就绪', logText.split('\n').slice(-4).join(' | '));
 
-  // ---- 3. 日志里不能有令牌明文
-  const leak = /token=[A-Za-z0-9_-]{20,}/.test(logText);
-  if (!leak) ok('日志里没有令牌明文');
+  if (/config page loaded/.test(logText)) ok('配置页加载完成');
+  else bad('配置页加载完成', logText.split('\n').slice(-4).join(' | '));
+
+  // ---- 4. 令牌只记长度
+  if (/token captured \(length \d+\)/.test(logText)) ok('令牌由壳接住', '日志只记长度');
+  else bad('令牌由壳接住', '日志里没有 token captured 行');
+  if (!/token=[A-Za-z0-9_-]{20,}/.test(logText)) ok('日志里没有令牌明文');
   else bad('日志里没有令牌明文', '日志里出现了 ?token=…');
 
-  // ---- 4. 强杀后不留孤儿服务
+  // ---- 5. 强杀后不留孤儿服务
   const mine = uiServerPids().filter((p) => !before.has(p));
-  if (!mine.length) bad('强杀清理', '没找到本次起的 ui-server（可能提前退出了）');
-  ps("Stop-Process -Id " + pids[0] + " -Force -ErrorAction SilentlyContinue");
-  // 进程退出是异步的：taskkill 之后立刻查会看到"正在退出"的 pid，轮询到它消失为止（最多 10 秒）
+  if (!mine.length) bad('强杀清理', '没找到本次起的 ui-server（可能已经退出）');
+  ps('Get-Process electron -ErrorAction SilentlyContinue | Stop-Process -Force');
   let left = [];
   for (let i = 0; i < 50; i++) {
     left = uiServerPids().filter((p) => mine.indexOf(p) >= 0);
     if (!left.length) break;
     await sleep(200);
   }
-  if (!left.length) ok('强杀启动器后 ui-server 自清', '原 pid ' + mine.join(','));
+  if (!left.length) ok('强杀壳之后 ui-server 自清', '原 pid ' + mine.join(','));
   else {
-    bad('强杀启动器后 ui-server 自清', '残留 pid ' + left.join(','));
-    for (const p of left) ps("Stop-Process -Id " + p + " -Force -ErrorAction SilentlyContinue");
+    bad('强杀壳之后 ui-server 自清', '残留 pid ' + left.join(','));
+    for (const p of left) ps('Stop-Process -Id ' + p + ' -Force -ErrorAction SilentlyContinue');
   }
-  void exited; void NODE;
 
   const failed = results.filter((r) => !r.pass);
   console.log('');
@@ -123,6 +132,6 @@ function uiServerPids() {
   process.exit(failed.length ? 1 : 0);
 })().catch((e) => {
   console.error('e2e 崩了：' + (e && e.message ? e.message : e));
-  for (const p of launcherPids()) ps("Stop-Process -Id " + p + " -Force -ErrorAction SilentlyContinue");
+  ps('Get-Process electron -ErrorAction SilentlyContinue | Stop-Process -Force');
   process.exit(1);
 });

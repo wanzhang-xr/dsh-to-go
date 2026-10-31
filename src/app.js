@@ -130,7 +130,9 @@ function render(s) {
   const d = s.dsh || {};
   rows('ov-dsh', [
     ['运行状态', d.running ? '<span class="pill ok"><span class="dot on"></span> 运行中</span> pid ' + (d.pid || '?') : '<span class="pill">已停止</span>'],
-    ['网页地址', d.url ? '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.url.slice(0, 56)) + '…</a>' : '（运行后显示）'],
+    ['网页地址', d.url
+      ? '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.url.slice(0, 56)) + '…</a>'
+      : (d.running ? '<span class="pill warn">这次不是本页启动的 dsh，拿不到它的地址</span>（停止后重新启动即可内嵌打开）' : '（运行后显示）')],
     ['端口', String(d.port || s.webPort) + (d.startedAt ? '　启动于 ' + esc(d.startedAt) : '')],
   ]);
   // 主操作按运行状态互斥：运行中不该还能点「启动 dsh」，停止后也不该还能点「停止」
@@ -139,6 +141,8 @@ function render(s) {
   el('btn-dsh-start').disabled = !!d.running || notInstalled;
   el('btn-dsh-stop').disabled = !d.running;
   el('btn-dsh-open').disabled = !d.url;
+  el('btn-dsh-open').title = d.url ? '在窗口里的「dsh 界面」标签打开'
+    : (d.running ? '这次不是本页启动的 dsh：停止后重新启动一次，就能内嵌打开' : 'dsh 运行后可用');
   el('btn-dsh-start').title = notInstalled ? '活动槽里还没有 dsh：先到「升级」里安装' : '';
   el('ov-lock-note').textContent = notInstalled && !d.running
     ? '这台盘上还没装 dsh：先到「升级」里安装，再回来启动。'
@@ -347,7 +351,14 @@ el('btn-dsh-stop').addEventListener('click', (e) => withBusy(e.currentTarget, '�
 }));
 el('btn-dsh-open').addEventListener('click', () => {
   const d = (STATE && STATE.dsh) || {};
-  if (d.url) window.open(d.url, '_blank', 'noopener');
+  if (!d.url) return;
+  // 桌面壳里：交给壳切到「dsh 界面」标签并在内嵌视图里打开
+  // （直接 window.open 会被壳的窗口白名单拦掉，用户看到的就是"点了没反应"）
+  const host = hostBridge();
+  if (host) {
+    try { host.postMessage({ type: 'dsh.activate' }); return; } catch (e) { /* 落回浏览器 */ }
+  }
+  window.open(d.url, '_blank', 'noopener');
 });
 el('btn-switch').addEventListener('click', async () => {
   try {
@@ -907,7 +918,7 @@ function applyAppearance(a, persist) {
     // 通知桌面壳：dsh 界面那张背景也要跟着换
     try {
       const host = hostBridge();
-      if (host) host.postMessage(JSON.stringify({ type: 'dsh.wallpaper' }));
+      if (host) host.postMessage({ type: 'dsh.wallpaper' });
     } catch (e) { /* 浏览器回退没有宿主 */ }
   }
 }

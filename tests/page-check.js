@@ -267,6 +267,28 @@ function checkSkeleton(text, starts, lines) {
     items: [{ line, snippet: snippet(lines[line - 1] || '') }] };
 }
 
+
+function checkBridgePayload(text, starts, lines) {
+  // 桌面壳的 preload 只接受对象（字符串会被 JSON.parse 兜住，但旧代码里传字符串
+  // 曾经是"点了没反应"的根因：postMessage 静默 return）。这里静态拦住这种写法。
+  const re = /postMessage\s*\(\s*JSON\.stringify/g;
+  const items = [];
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const { line, column } = lineColOf(starts, m.index);
+    items.push({ line, column, snippet: snippet(lines[line - 1] || '') });
+  }
+  return {
+    id: 'bridge-payload',
+    title: '宿主桥的载荷直接传对象（不要把 JSON.stringify 的结果喂给 postMessage）',
+    status: items.length ? 'FAIL' : 'PASS',
+    detail: items.length
+      ? `有 ${items.length} 处 postMessage(JSON.stringify(...))：壳的 preload 只认对象，字符串会被丢弃 → 用户看到"点了没反应"`
+      : '没有 JSON.stringify 包裹的桥调用',
+    items,
+  };
+}
+
 function checkTokenBridge(text, starts, lines) {
   const re = /dsh\.token(?:\.request)?\b/g;
   const items = [];
@@ -357,6 +379,7 @@ function main(argv) {
     checkReducedMotion(text, starts, lines),
     checkSkeleton(text, starts, lines),
     checkTokenBridge(text, starts, lines),
+    checkBridgePayload(text, starts, lines),
     ...advisories(text, lines, starts),
   ];
 

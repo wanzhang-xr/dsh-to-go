@@ -261,6 +261,12 @@ runtime\node\node.exe tools\plugins.js setup-pnpm  :: 把 pnpm 装到本盘
 - **三层结构（对齐上游 `deepseek-ai/deepseek-harness/apps/desktop` 的思路）**：
   壳 `tools/electron/main.js`（窗口 / 三个 `WebContentsView` / 主题 / 托盘 / 关窗流程）·
   后端 `tools/ui-server.js` + dsh（不改上游）· 界面 `配置页` + `dsh 官方 Web UI` 两个视图。
+- **`tools/launcher/build-launcher.cmd` 有两个分支**：默认编 `Shim.cs` → 根目录 `dsh-to-go.exe`
+  （96 KB 左右的 shim，拉起 Electron，缺 Electron 回退 `dsh-ui.cmd`）；
+  `build-launcher.cmd legacy` 才编旧的 `DshLauncher.cs`（WinForms + WebView2，133 KB，需要
+  `third_party/webview2` 与宿主 WebView2 运行时）。`build.cmd` / `build.ps1` 走的是**默认分支**。
+  验证产物是哪一个：`.NET` 字符串是 UTF-16，用 `b'electron.exe'.decode().encode('utf-16-le') in exe_bytes`
+  判断（含 `electron.exe`、不含 `WebView2` = shim）。
 - **窗口与顶栏**：无边框，顶栏 54px（`tools/electron/shell.html` 的 `--bar-h` 必须和 `main.js` 的 `SHELL_H` 一致）。
   顶栏里放：品牌 + 六个分区 + `dsh 界面` 标签 + dsh 运行状态 chip + 端口 + 主题按钮 + 三颗窗口按钮。
   **页面那排 `nav` 在壳里会被隐藏**（`insertCSS`），分区切换由壳驱动、页面回报高亮。

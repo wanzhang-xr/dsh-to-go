@@ -192,7 +192,10 @@ dsh 自己的凭据分层是「启动环境 > `.credentials.yaml` > 项目 `.env
 
 ## 自己构建时都发生了什么
 
-1. `build.cmd` → `tools\build.ps1`：下载官方 Node win-x64 zip（**校验 SHA-256**，失败则中止）、解压成 `runtime\node`，然后**打开图形向导**（`-Cli` 才在命令行把两个槽一次装好）
+1. `build.cmd` → `tools\build.ps1`：下载官方 Node win-x64 zip（**校验 SHA-256**，失败则中止）、解压成 `runtime\node`；
+   用系统自带 `csc.exe` 把 `tools\launcher\Shim.cs` 编成根目录的 `dsh-to-go.exe`（几百 KB 的入口，拉起 Electron）；
+   再下 **Electron 运行时**（npm 包约 15 MB + 镜像二进制约 368 MB，落在 `runtime\electron\`，**不入 git**；失败不阻断，
+   那样 `dsh-to-go.exe` 会回退到浏览器入口 `dsh-ui.cmd`）；最后**打开图形向导**（`-Cli` 才在命令行把两个槽一次装好）
 2. 向导里的「选择版本安装」→ `tools\jobs.js` 起后台任务 → `tools\install.js`：为槽写 `package.json` 并在槽目录里 `npm install --cache=runtime\npm-cache`，官方源失败自动换 npmmirror；然后写 `current.txt`/`port.txt`/`VERSION.txt`
 3. 之后所有启动都走 `tools\launch.js`：解锁密钥 → 组装环境 → 注入站点覆盖层 → 起 dsh
 
